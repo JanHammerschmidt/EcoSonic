@@ -16,6 +16,7 @@ class QTrackEditor : public QWidget
 {
     Q_OBJECT
 public:
+    friend class QCarViz;
     explicit QTrackEditor(QWidget *parent = 0) {
         Q_UNUSED(parent);
 

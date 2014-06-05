@@ -63,6 +63,7 @@ MainWindow::MainWindow(QWidget *parent)
     , timer(this)
 {
     ui->setupUi(this);
+    last_tab = ui->tabWidget->currentIndex();
     Track::load_sign_images();
     ui->track_editor->init(ui->track_width, ui->track_points, ui->track_show_control_points, ui->track_add_sign, ui->track_reset);
     ui->car_viz->init(&car, ui->start, ui->throttle, ui->breaking, ui->gear, this);
@@ -138,4 +139,12 @@ void MainWindow::update_plots(qreal, qreal elapsed) {
     // update sound parameters
     osc.send_float("/rpm", car.engine.rel_rpm() * 0.9);
     //osc.send_float("/throttle", car.throttle);
+}
+
+void MainWindow::on_tabWidget_currentChanged(int index)
+{
+    if (last_tab == 2) {
+        ui->car_viz->copy_from_track_editor(ui->track_editor);
+    }
+    last_tab = index;
 }

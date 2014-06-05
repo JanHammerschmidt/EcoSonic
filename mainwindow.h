@@ -78,12 +78,16 @@ public slots:
     void update_plots(qreal dt, qreal elapsed);
 //    void tick();
 
+private slots:
+    void on_tabWidget_currentChanged(int index);
+
 private:
     Ui::MainWindow *ui;
     Car car;
     QTimer timer;
     OSCSender osc;
     std::auto_ptr<StaticMap> rpm2torque, throttle2torque;
+    int last_tab = 1;
     //StaticMap *torque_rpm;
     //StaticMap *torque_rpm
 };

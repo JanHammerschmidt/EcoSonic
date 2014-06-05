@@ -17,6 +17,7 @@
 #include <QShortcut>
 #include <QMainWindow>
 //#include <random>
+#include "qtrackeditor.h"
 #include "PedalInput.h"
 #include "track.h"
 #include "car.h"
@@ -164,16 +165,6 @@ struct KeyboardInput : public QObject
         return ret;
     }
 
-//    if (keys_pressed.contains(Qt::Key_Up)) {
-//        car->throttle = 1;
-//        car->breaking = 0;
-//    } else if (keys_pressed.contains(Qt::Key_Down)) {
-//        car->throttle = 0;
-//        car->breaking = 1;
-//    } else {
-//        car->throttle = car->breaking = 0;
-//    }
-
     bool update() {
         const bool ret = changed;
         changed = false;
@@ -251,6 +242,11 @@ public:
         tick_timer.stop();
         started = false;
         start_button->setText("Cont.");
+    }
+
+    void copy_from_track_editor(QTrackEditor* track_editor) {
+        track = track_editor->track;
+        update_track_path(height());
     }
 
 signals:
@@ -366,10 +362,14 @@ protected:
             update();
     }
 
-    virtual void resizeEvent(QResizeEvent *e) {
+    void update_track_path(const int height) {
         QPainterPath path;
-        track.get_path(path, e->size().height());
+        track.get_path(path, height);
         track_path.swap(path);
+    }
+
+    virtual void resizeEvent(QResizeEvent *e) {
+        update_track_path(e->size().height());
     }
 
     qreal current_pos = 100;
