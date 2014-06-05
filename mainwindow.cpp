@@ -65,7 +65,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     Track::load_sign_images();
     ui->track_editor->init(ui->track_width, ui->track_points, ui->track_show_control_points, ui->track_add_sign, ui->track_reset);
-    ui->car_viz->init(&car, ui->start, this);
+    ui->car_viz->init(&car, ui->start, ui->throttle, ui->breaking, ui->gear, this);
     QObject::connect(ui->car_viz, SIGNAL(slow_tick(qreal,qreal)),
                      this, SLOT(update_plots(qreal,qreal)));
 
@@ -131,11 +131,9 @@ void MainWindow::update_plots(qreal, qreal elapsed) {
 
     // update from user input
     car.gearbox.gear = ui->gear->value() - 1;
-    car.throttle = ui->throttle->value() / 100.;
     //car.gearbox.auto_clutch_control(car.engine, dt);
     //ui->clutch->setValue(car.gearbox.clutch * 100);
     car.gearbox.clutch = ui->clutch->value() / 100.;
-    car.breaking = ui->breaking->value() / 100;
 
     // update sound parameters
     osc.send_float("/rpm", car.engine.rel_rpm() * 0.9);

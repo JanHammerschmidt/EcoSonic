@@ -28,6 +28,7 @@ public:
             return 0;
 
         // get forward force
+        Q_ASSERT(!isnan(engine.angular_velocity));
         engine.update_torque(throttle);
         qreal F = gearbox.torque2force_engine2wheels(engine, speed, dt);
         current_wheel_force = F;
@@ -53,7 +54,10 @@ public:
         speed += a * dt;
         if (speed < 0) // TODO: sure?
             speed = 0;
+        Q_ASSERT(!isnan(speed));
+        Q_ASSERT(!isnan(engine.angular_velocity));
         gearbox.update_engine_speed(engine, speed, dt);
+        Q_ASSERT(!isnan(engine.angular_velocity));
         current_acceleration = a;
         return a;
     }

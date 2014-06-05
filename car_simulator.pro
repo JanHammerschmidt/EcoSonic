@@ -12,11 +12,17 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport
 TARGET = car_simulator
 TEMPLATE = app
 
+#QMAKE_LFLAGS += -F/System/Library/Frameworks/Kernel.framework/Versions/A/Headers/IOKit
+
+LIBS += -framework IOKit
+LIBS += -framework CoreFoundation
+
 DEPENDPATH += . \
     ./include
 INCLUDEPATH += . \
     ./include \
-    ./lib/oscpack_1_1_0
+    ./lib/oscpack_1_1_0 \
+    ./lib/HID
 
 CONFIG += precompile_header c++11
 PRECOMPILED_HEADER = stable.h
@@ -32,7 +38,8 @@ SOURCES += main.cpp\
     lib/oscpack_1_1_0/ip/IpEndpointName.cpp \
     lib/oscpack_1_1_0/ip/posix/NetworkingUtils.cpp \
     lib/oscpack_1_1_0/ip/posix/UdpSocket.cpp \
-    qtrackeditor.cpp
+    qtrackeditor.cpp \
+    lib/HID/HID.cpp
 
 HEADERS  += mainwindow.h \
     engine.h \
@@ -58,6 +65,8 @@ HEADERS  += mainwindow.h \
     resistances.h \
     qcarviz.h \
     qtrackeditor.h \
-    track.h
+    track.h \
+    lib/HID/HID.h \
+    PedalInput.h
 
 FORMS    += mainwindow.ui

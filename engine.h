@@ -16,8 +16,9 @@ public:
         if (throttle < min_throttle && rpm() < 700) // ansonsten: Schubabschaltung!
             throttle = min_throttle;
         torque = max_torque * torque_map.get_torque(throttle, rel_rpm());
-        torque_out = torque - engine_braking_coefficient * pow(rpm() / 60, 1.1)
+        torque_out = torque - engine_braking_coefficient * pow(std::max(rpm(), 0.) / 60, 1.1)
                             - engine_braking_offset;
+        Q_ASSERT(!isnan(torque_out));
         return torque_out;
     }
 
@@ -45,7 +46,10 @@ public:
     }
 
     inline double rpm() const { return angular_velocity * 60 / (2*M_PI); }
-    inline void set_rpm(qreal rpm) { angular_velocity = rpm2angular_velocity(rpm); }
+    inline void set_rpm(qreal rpm) {
+        Q_ASSERT(!isnan(rpm));
+        angular_velocity = rpm2angular_velocity(rpm);
+    }
     inline double rel_rpm() const { return rpm() / max_rpm; }
     static inline double rpm2angular_velocity(qreal const rpm) { return rpm * 2 * M_PI / 60; }
 

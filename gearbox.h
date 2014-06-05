@@ -25,6 +25,7 @@ struct Gearbox
             engine.set_rpm(speed2engine_rpm(speed));
         else
             engine.angular_velocity += (engine.torque_out - engine.torque_counter) / engine.inertia * dt;
+        Q_ASSERT(!isnan(engine.angular_velocity));
         return;
         if (clutch == 0) {
             engine.angular_velocity += engine.torque_out / engine.inertia * dt;

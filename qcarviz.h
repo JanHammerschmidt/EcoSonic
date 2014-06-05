@@ -11,10 +11,13 @@
 #include <string>
 #include <QTimer>
 #include <QPushButton>
+#include <QSlider>
+#include <QSpinBox>
 #include <QTextStream>
 #include <QShortcut>
 #include <QMainWindow>
 //#include <random>
+#include "PedalInput.h"
 #include "track.h"
 #include "car.h"
 
@@ -147,6 +150,64 @@ struct RevCounter : public Speedometer
     }
 };
 
+struct KeyboardInput : public QObject
+{
+    void init(QMainWindow* main_window) {
+        main_window->installEventFilter(this);
+    }
+
+    double throttle() { return keys_pressed.contains(Qt::Key_Up) ? 1 : 0; }
+    double breaking() { return keys_pressed.contains(Qt::Key_Down) ? 1 : 0; }
+    int gear_change() {
+        const int ret = gears;
+        gears = 0;
+        return ret;
+    }
+
+//    if (keys_pressed.contains(Qt::Key_Up)) {
+//        car->throttle = 1;
+//        car->breaking = 0;
+//    } else if (keys_pressed.contains(Qt::Key_Down)) {
+//        car->throttle = 0;
+//        car->breaking = 1;
+//    } else {
+//        car->throttle = car->breaking = 0;
+//    }
+
+    bool update() {
+        const bool ret = changed;
+        changed = false;
+        return ret;
+    }
+
+protected:
+    virtual bool eventFilter(QObject *obj, QEvent *e) {
+        Q_UNUSED(obj);
+//        if (e->type() == QEvent::KeyPress || e->type() == QEvent::KeyRelease) {
+//            QKeyEvent *key = static_cast<QKeyEvent *>(e);
+//            printf("%s: %d\n", (e->type() == QEvent::KeyPress) ? "down" : "up", key->key());
+//        }
+        int const key = static_cast<QKeyEvent *>(e)->key();
+        if (key == Qt::Key_Up || key == Qt::Key_Down)
+            changed = true;
+
+        if (e->type() == QEvent::KeyPress) {
+            switch (key) {
+                case Qt::Key_W: gears += 1; break;
+                case Qt::Key_S: gears -= 1; break;
+                default: keys_pressed.insert(key);
+            }
+        }
+        else if (e->type() == QEvent::KeyRelease) {
+            keys_pressed.remove(key);
+        }
+        return false;
+    }
+    QSet<int> keys_pressed;
+    bool changed = false;
+    int gears = 0;
+};
+
 class QCarViz : public QWidget
 {
     Q_OBJECT
@@ -167,12 +228,15 @@ public:
         QObject::connect(&tick_timer, SIGNAL(timeout()), this, SLOT(tick()));
     }
 
-    void init(Car* car, QPushButton* start_button, QMainWindow* main_window, bool start = false) {
+    void init(Car* car, QPushButton* start_button, QSlider* throttle, QSlider* breaking, QSpinBox* gear, QMainWindow* main_window, bool start = false) {
         this->car = car;
         this->start_button = start_button;
+        throttle_slider = throttle;
+        breaking_slider = breaking;
+        gear_spinbox = gear;
         QObject::connect(start_button, SIGNAL(clicked()),
                          this, SLOT(start_stop()));
-        main_window->installEventFilter(this);
+        keyboard_input.init(main_window);
         if (start)
             this->start();
     }
@@ -204,15 +268,31 @@ protected slots:
         if (!time_delta.get_time_delta(dt))
             return false;
 
-        if (keys_pressed.contains(Qt::Key_Forward)) {
-            car->throttle = 1;
-            car->breaking = 0;
-        } else if (keys_pressed.contains(Qt::Key_Back)) {
-            car->throttle = 0;
-            car->breaking = 1;
+        static bool changed = false;
+        // keyboard input
+        if (keyboard_input.update()) {
+            car->throttle = keyboard_input.throttle();
+            car->breaking = keyboard_input.breaking();
+            changed = true;
+        }
+        const int gear_change = keyboard_input.gear_change();
+        if (gear_change) {
+            if (gear_change > 0)
+                car->gearbox.gear_up();
+            else if (gear_change < 0)
+                car->gearbox.gear_down();
+            gear_spinbox->setValue(car->gearbox.gear+1);
+        }
+
+        // pedal input
+        if (pedal_input.valid() && pedal_input.update()) {
+            car->throttle = pedal_input.gas();
+            car->breaking = pedal_input.brake();
+            changed = true;
         }
 
         const qreal alpha = atan(-track_path.slopeAtPercent(track_path.percentAtLength(current_pos))); // slope [rad]
+        Q_ASSERT(!isnan(alpha));
         car->tick(dt, alpha);
         current_pos += car->speed * dt * 3;
         if (current_pos > track_path.length())
@@ -221,6 +301,14 @@ protected slots:
         static qreal last_elapsed = 0;
         qreal elapsed = time_delta.get_elapsed();
         if (elapsed - last_elapsed > 0.05) {
+            if (changed) {
+                throttle_slider->setValue(car->throttle * 100);
+                breaking_slider->setValue(car->breaking * 100);
+                changed = false;
+            } else {
+                car->throttle = throttle_slider->value() / 100.;
+                car->breaking = breaking_slider->value() / 100.;
+            }
             emit slow_tick(elapsed - last_elapsed, elapsed);
             last_elapsed = elapsed;
         }
@@ -284,28 +372,6 @@ protected:
         track_path.swap(path);
     }
 
-    virtual bool eventFilter(QObject *obj, QEvent *e) {
-        Q_UNUSED(obj);
-//        if (e->type() == QEvent::KeyPress || e->type() == QEvent::KeyRelease) {
-//            QKeyEvent *key = static_cast<QKeyEvent *>(e);
-//            printf("%s: %d\n", (e->type() == QEvent::KeyPress) ? "down" : "up", key->key());
-//        }
-
-        if (e->type() == QEvent::KeyPress) {
-            const int key = static_cast<QKeyEvent *>(e)->key();
-            switch (key) {
-                case Qt::Key_W:
-                    //car->gearbox
-                    break;
-                default:
-                keys_pressed.insert(key);
-            }
-        }
-        else if (e->type() == QEvent::KeyRelease)
-            keys_pressed.remove(static_cast<QKeyEvent *>(e)->key());
-        return false;
-    }
-
     qreal current_pos = 100;
     QImage car_img;
     Track track;
@@ -316,7 +382,11 @@ protected:
 //    QPainterPath path;
     QTimer tick_timer; // for simulation-ticks if the window is not visible
     QPushButton* start_button = NULL;
-    QSet<int> keys_pressed;
+    QSlider* throttle_slider = NULL;
+    QSlider* breaking_slider = NULL;
+    QSpinBox* gear_spinbox = NULL;
+    PedalInput pedal_input;
+    KeyboardInput keyboard_input;
 };
 
 
