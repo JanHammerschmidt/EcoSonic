@@ -164,6 +164,11 @@ struct KeyboardInput : public QObject
         gears = 0;
         return ret;
     }
+    bool toggle_clutch() {
+        const bool ret = clutch;
+        clutch = false;
+        return ret;
+    }
 
     bool update() {
         const bool ret = changed;
@@ -186,6 +191,7 @@ protected:
             switch (key) {
                 case Qt::Key_W: gears += 1; break;
                 case Qt::Key_S: gears -= 1; break;
+                case Qt::Key_Space: clutch = true; break;
                 default: keys_pressed.insert(key);
             }
         }
@@ -197,6 +203,7 @@ protected:
     QSet<int> keys_pressed;
     bool changed = false;
     int gears = 0;
+    bool clutch = false;
 };
 
 class QCarViz : public QWidget
@@ -279,6 +286,14 @@ protected slots:
                 car->gearbox.gear_down();
             gear_spinbox->setValue(car->gearbox.gear+1);
         }
+        const bool toggle_clutch = keyboard_input.toggle_clutch();
+        if (toggle_clutch) {
+            Clutch& clutch = car->gearbox.clutch;
+            if (clutch.engage)
+                clutch.disengage();
+            else
+                clutch.clutch_in(car->engine, &car->gearbox, car->speed);
+        }
 
         // pedal input
         if (pedal_input.valid() && pedal_input.update()) {
@@ -293,6 +308,11 @@ protected slots:
         current_pos += car->speed * dt * 3;
         if (current_pos > track_path.length())
             current_pos = 0;
+        consumption_monitor.tick(car->engine.get_consumption_L_s(), dt);
+        double l_100km;
+        if (consumption_monitor.get_l_100km(l_100km, car->speed)) {
+            printf("%.3f\n", l_100km);
+        }
 
         static qreal last_elapsed = 0;
         qreal elapsed = time_delta.get_elapsed();
@@ -372,7 +392,7 @@ protected:
         update_track_path(e->size().height());
     }
 
-    qreal current_pos = 100;
+    qreal current_pos = 100; // max is: track_path.length()
     QImage car_img;
     Track track;
     TimeDelta time_delta;
@@ -387,6 +407,7 @@ protected:
     QSpinBox* gear_spinbox = NULL;
     PedalInput pedal_input;
     KeyboardInput keyboard_input;
+    ConsumptionMonitor consumption_monitor;
 };
 
 

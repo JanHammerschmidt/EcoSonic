@@ -79,7 +79,7 @@ MainWindow::MainWindow(QWidget *parent)
     setup_plot(ui->plot_acceleration, "time", "acceleration [m/s^2]");
     setup_plot(ui->plot_resistance, "time", "resistane [N]");
     setup_plot(ui->plot_power, "time", "engine power output [kW]");
-    setup_plot(ui->plot_consumption, "time", "consumption [g/h]");
+    setup_plot(ui->plot_consumption, "time", "consumption [L/s]");
     setup_plot(ui->plot_liters, "time", "relative consumption [L/100km]");
     setup_plot(ui->plot_rpm2torque, "rpm", "rel. torque");
     rpm2torque.reset(new StaticMap(*ui->plot_rpm2torque));
@@ -125,7 +125,7 @@ void MainWindow::update_plots(qreal, qreal elapsed) {
     add_plot_value(ui->plot_acceleration, t, car.current_acceleration);
     add_plot_value(ui->plot_resistance, t, car.current_accumulated_resistance);
     add_plot_value(ui->plot_power, t, car.engine.power_output());
-    add_plot_value(ui->plot_consumption, t, car.engine.get_consumption());
+    add_plot_value(ui->plot_consumption, t, car.engine.get_consumption_L_s());
     add_plot_value(ui->plot_liters, t, std::min(40., car.engine.get_l100km(car.speed)));
     plot_rpm2torque(*rpm2torque, car);
     plot_throttle2torque(*throttle2torque, car);
@@ -134,10 +134,10 @@ void MainWindow::update_plots(qreal, qreal elapsed) {
     car.gearbox.gear = ui->gear->value() - 1;
     //car.gearbox.auto_clutch_control(car.engine, dt);
     //ui->clutch->setValue(car.gearbox.clutch * 100);
-    car.gearbox.clutch = ui->clutch->value() / 100.;
+    //car.gearbox.clutch = ui->clutch->value() / 100.;
 
     // update sound parameters
-    osc.send_float("/rpm", car.engine.rel_rpm() * 0.9);
+    osc.send_float("/rpm", 0.1 + car.engine.rel_rpm() * 0.8);
     //osc.send_float("/throttle", car.throttle);
 }
 
