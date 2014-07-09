@@ -9,7 +9,6 @@
 #include <QThread>
 #include <QElapsedTimer>
 #include <string>
-#include <algorithm>
 #include <QTimer>
 #include <QPushButton>
 #include <QSlider>
@@ -22,8 +21,6 @@
 #include "PedalInput.h"
 #include "track.h"
 #include "car.h"
-
-#define TRACK_Y_SAMPLING 0.5
 
 static std::mt19937_64 rng(std::random_device{}());
 
@@ -180,51 +177,9 @@ struct Tree {
     Tree(const int tree_type, const qreal pos, const qreal scale = 1, const qreal speed_scale = 1)
         : type(tree_type), pos(pos), scale(scale), speed_scale(speed_scale) {}
 
-    QPointF unscaled_track_pos(QPainterPath& track_path) const {
-         return track_path.pointAtPercent(track_path.percentAtLength(pos));
+    qreal track_x(const qreal cur_x) {
+        return cur_x + (pos - cur_x) * speed_scale;
     }
-    QPointF track_pos(QPainterPath& track_path, const qreal cur_x) {
-        const qreal track_path_length = track_path.length();
-        QPointF track_pos = unscaled_track_pos(track_path);
-        //track_pos.setX(cur_x + (track_pos.x() - cur_x) * scale);
-        qreal pos = cur_x + (track_pos.x() - cur_x) * speed_scale;
-        qreal delta = 0;
-        if (pos < 0) {
-            delta = pos;
-            pos = 0;
-        } else if (pos > track_path_length) {
-            delta = pos - track_path_length;
-            pos = track_path_length;
-        }
-        track_pos = track_path.pointAtPercent(track_path.percentAtLength(pos));
-        track_pos.setX(track_pos.x() + delta);
-
-        return track_pos;
-    }
-//    QPainterPath track_y(QPainterPath& track_path, const qreal x) {
-//        QPainterPath i;
-//        QRectF bounding_rect = track_path.boundingRect();
-//        if (x >= bounding_rect.right())
-//            //return track_path.pointAtPercent(1).y();
-//            i.addEllipse(QPointF(x, track_path.pointAtPercent(1).y()), 10, 10);
-//        else if (x <= bounding_rect.left())
-//            //return track_path.pointAtPercent(0).y();
-//            i.addEllipse(QPointF(x, track_path.pointAtPercent(0).y()), 10, 10);
-//        else {
-//            //QPainterPath r;
-//            //r.addRect(x, bounding_rect.y(), 1, bounding_rect.height());
-//            //i = track_path.intersected(r);
-//            i.moveTo(x, bounding_rect.top());
-//            i.lineTo(track_path.pointAtPercent(track_path.percentAtLength(x)));
-//        }
-//        return i;
-//        //return i.boundingRect().top();
-//    }
-    qreal track_x(const qreal track_x, const qreal cur_x, const qreal car_x) {
-        return track_x - cur_x + car_x;
-    }
-
-    inline bool operator<(const Tree& t2) const { return scale < t2.scale; }
 
     int type = 0; // which type of tree
     qreal pos; // position on the track
@@ -421,18 +376,15 @@ protected:
 
     void fill_trees() {
         trees.clear();
-        const qreal track_length = track_path.length(); //track_path.boundingRect().width();
-        std::uniform_real_distribution<qreal> dist(10,60);
-        std::uniform_real_distribution<qreal> scale(5, 5);
-        std::uniform_int_distribution<int> tree_type(0,1);
-        for (double x = dist(rng); x < track_length; x += dist(rng)) {
-            qreal s = scale(rng);
-            trees.append(Tree(tree_type(rng), x, s, 10*s));
+        const qreal first_tree = 100;
+        const qreal track_length = track_path.boundingRect().width();
+        std::uniform_int_distribution<int> tree_type(0,tree_types.size()-1);
+        std::uniform_real_distribution<qreal> dist(10,60); // distance between the trees
+        const qreal scale = 5;
+
+        for (double x = first_tree; x < track_length; x += dist(rng)) {
+            trees.append(Tree(tree_type(rng), x, scale, 10*scale));
         }
-//        for (double x = dist(rng); x < track_length; x += dist(rng)) {
-//            trees.append(Tree(x, 1, 1));
-//        }
-        qSort(trees);
     }
 
     virtual void paintEvent(QPaintEvent *) {
@@ -482,61 +434,19 @@ protected:
 
         // draw the trees in the foreground
         t.reset();
-        painter.setTransform(t);
-
         t.translate(car_x_pos - cur_p.x(),0);
         painter.setTransform(t);
 
-        //qreal track_width = track_path.boundingRect().width();
+        const qreal track_bottom = track_path.boundingRect().bottom();
         for (Tree tree : trees) {
-#if 0
-            QPointF tree_pos = track_path.pointAtPercent(track_path.percentAtLength(tree.pos));
-            tree_pos.setX((tree_pos.x() - cur_p.x()) * tree.scale + car_x_pos);
-#elif 0
-            //QPointF tree_pos = track_path.pointAtPercent(track_path.percentAtLength(tree.pos));
-            //tree_pos.setX(cur_p.x() + (tree_pos.x() - cur_p.x()) * tree.scale);
-            QPointF tree_pos = tree.track_pos(track_path, cur_p.x());
-            QPointF tree_pos2 = track_path.pointAtPercent(track_path.percentAtLength(tree_pos.x()));
-            tree_pos.setY(tree_pos2.y());
-            tree_pos.setX(tree_pos2.x());
-            //tree_pos.setY(tree.track_y(track_path, tree_pos.x()));
-            //QPainterPath p = tree.track_y(track_path, tree_pos.x());
-            //painter.drawPath(p);
-            //tree_pos.setX(tree.track_x(tree_pos.x(), cur_p.x(), car_x_pos));
-#else
-            QPointF tree_pos = tree.track_pos(track_path, cur_p.x());
-            qreal i = std::min((tree.scale - 1) * 1.2, 1.);
-            tree_pos.setY(i * track_path.boundingRect().bottom() + (1-i) * tree_pos.y());
-            //tree_pos.setY(tree.track_y(track_path, tree_pos.x()));
-            //tree_pos.setX(tree.track_x(tree_pos.x(), cur_p.x(), car_x_pos));
-#endif
-
-//            tree_pos.setX(tree_pos.x() + cur_p.x() - car_x_pos);
-//            tree_pos = track_path.pointAtPercent(track_path.percentAtLength(tree_pos.x()));
-//            tree_pos.setX((tree_pos.x() - cur_p.x()) * tree.scale + car_x_pos);
-
+            const qreal tree_x = tree.track_x(cur_p.x());
+            QPointF tree_pos(tree_x, track_bottom);
             tree_types[tree.type].draw_scaled(painter, tree_pos, tree.scale);
-            //painter.drawEllipse(tree_pos, 10, 10);
         }
-        //qreal tree_pos = track_width;
-//        printf("%.3f / %.3f / %.3f\n", track_width, cur_p.x(), tree_pos - cur_p.x());
-        //painter.drawEllipse(QPointF((tree_pos - cur_p.x()) * 2 + car_x_pos, cur_p.y()), 10, 10);
-
 
         if (started)
             update();
     }
-
-//    void update_track_y() {
-//        track_path_y.resize(0);
-//        const int max_i = track_path.length() / TRACK_Y_SAMPLING;
-//        for (int i = 0; i < max_i; i++) {
-//            const QPointF p = track_path.pointAtPercent(track_path.percentAtLength(i * TRACK_Y_SAMPLING));
-
-//            track_path_y.append(
-//        }
-//        qSearch()
-//    }
 
     void update_track_path(const int height) {
         QPainterPath path;
@@ -554,11 +464,9 @@ protected:
     TimeDelta time_delta;
     Car* car;
     QPainterPath track_path;
-//    QVector<qreal> track_path_y;
     QVector<TreeType> tree_types;
     QVector<Tree> trees;
     bool started = false;
-//    QPainterPath path;
     QTimer tick_timer; // for simulation-ticks if the window is not visible
     QPushButton* start_button = NULL;
     QSlider* throttle_slider = NULL;
