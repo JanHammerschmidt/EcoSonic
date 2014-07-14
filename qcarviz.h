@@ -332,7 +332,7 @@ public:
         setPalette(p);
 
         printf("%s\n", QDir::currentPath().toStdString().c_str());
-        tree_types.append(TreeType("media/trees/tree2.png", 0.2/3, 50*3));
+        tree_types.append(TreeType("media/trees/tree.png", 0.2/3, 50*3));
         tree_types.append(TreeType("media/trees/birch.png", 0.08, 140));
         tree_types.append(TreeType("media/trees/spooky_tree.png", 0.06, 120));
         car_img.load("media/cars/car.png");
@@ -454,10 +454,11 @@ protected:
 
     void fill_trees() {
         trees.clear();
-        const qreal first_tree = 100;
+        const qreal first_distance = 40; // distance from starting position of the car!
         const qreal track_length = track_path.boundingRect().width();
         std::uniform_int_distribution<int> tree_type(0,tree_types.size()-1);
         std::uniform_real_distribution<qreal> dist(5,50); // distance between the trees
+        const qreal first_tree = track_path.pointAtPercent(track_path.percentAtLength(initial_pos)).x() + first_distance;
         const qreal scale = 5;
 
         for (double x = first_tree; x < track_length; x += dist(rng)) {
@@ -532,7 +533,8 @@ protected:
         update_track_path(e->size().height());
     }
 
-    qreal current_pos = 100; // max is: track_path.length()
+    const qreal initial_pos = 100;
+    qreal current_pos = initial_pos; // max is: track_path.length()
     QImage car_img;
     Track track;
     TimeDelta time_delta;
