@@ -130,7 +130,7 @@ protected:
         if (sign_moving >= 0) {
             if (e->button() == Qt::RightButton) {
                 QMenu menu(this);
-                const QString del("Delete!");
+                const QString del("Delete");
                 menu.addAction(del);
                 for (auto& i : track.sign_images)
                     menu.addAction(i.name);

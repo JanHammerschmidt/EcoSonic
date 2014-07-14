@@ -96,8 +96,8 @@ struct Track {
 
     static void load_sign_images() {
         sign_images.resize(Sign::__length);
-        sign_images[Sign::Stop].load("/Users/jhammers/Downloads/cars/stop-sign.svg", "Stop", 0.02);
-        sign_images[Sign::Speed60].load("/Users/jhammers/Downloads/cars/60sign.svg", "Speed: 60", 0.05);
+        sign_images[Sign::Stop].load("media/signs/stop-sign.svg", "Stop", 0.02);
+        sign_images[Sign::Speed60].load("media/signs/60sign.svg", "Speed: 60", 0.05);
     }
 
 };

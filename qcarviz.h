@@ -153,6 +153,81 @@ struct RevCounter : public Speedometer
     }
 };
 
+struct HUD {
+    struct ConsumptionDisplay {
+        ConsumptionDisplay(QString legend2 = "100km", const char* const number_format = "%04.1f")
+            : number_format(number_format)
+        {
+            legend[1] = legend2;
+            for (int i = 0; i < 3; i++)
+                font_heights[i] = font_metrics[i].height();
+        }
+        void draw(QPainter& painter, QPointF pos, qreal consumption, bool draw_number = true) {
+            QString number; number.sprintf(number_format, consumption); //QString::number(consumption, 'f', 1);
+
+            const qreal l2_x_offset = -3; // x-offset of 2nd part of legend
+            const qreal l2_y_offset = 2; // y-offset of 2nd part of legend (100km)
+            const qreal y_gap = 0; // gap between number and legend
+            //const qreal border_x = 0;
+            //const qreal border_y = 0; // border for the bounding rect
+            const qreal rect_y_offset = 3;
+            const QSizeF rect_size(45,33);
+
+            const qreal legend_height =  font_heights[1] + std::max(l2_y_offset, 0.);
+            const qreal height = font_heights[0] + y_gap + legend_height; // total height
+
+            const qreal number_width = draw_number ? font_metrics[0].width(number) : 0;
+            const int legend_widths[2] = { font_metrics[1].width(legend[0]), font_metrics[2].width(legend[1]) };
+            const qreal legend_width = legend_widths[0] + legend_widths[1] + l2_x_offset;
+            //const qreal width = std::max(number_width, legend_width); // total width
+
+            painter.setBrush(QBrush(Qt::gray));
+            painter.setPen(Qt::NoPen);
+            //painter.drawRoundedRect(QRectF(pos + QPointF(-0.5 * width - border_x, -0.5 * height - border_y + rect_y_offset), QSizeF(width + 2*border_x, height + 2*border_y)), 1, 1);
+            painter.drawRoundedRect(QRectF(pos + QPointF(-0.5 * rect_size.width(), -0.5 * rect_size.height() + rect_y_offset), rect_size), 5, 3);
+            painter.setPen(QPen(Qt::white));
+
+            // draw number
+            painter.setFont(fonts[0]);
+            QPointF p = pos + QPointF(-0.5 * number_width, -0.5 * height + font_heights[0]);
+            painter.drawText(p, number);
+
+            // draw 1st part of legend
+            painter.setFont(fonts[1]);
+            p = pos + QPointF(-0.5 * legend_width, 0.5 * height - l2_y_offset);
+            painter.drawText(p, legend[0]);
+
+            //draw 2nd part of legend
+            painter.setFont(fonts[2]);
+            p.setX(p.x() + legend_widths[0] + l2_x_offset);
+            p.setY(p.y() + l2_y_offset);
+            painter.drawText(p, legend[1]);
+        }
+
+        // fonts for number, 'L/', 100kmh
+        QFont fonts[3] = { {"Eurostile", 18, QFont::Bold}, {"Eurostile", 12, QFont::Bold}, {"Eurostile", 8, QFont::Bold} };
+        QFontMetrics font_metrics[3] = {QFontMetrics(fonts[0]), QFontMetrics(fonts[1]), QFontMetrics(fonts[2])};
+        qreal font_heights[3];
+        QString legend[2] = {"L/", "100km"};
+        const char* const number_format;
+    };
+
+    ConsumptionDisplay consumption_display;
+    ConsumptionDisplay trip_consumption{"Trip", "%04.2f"};
+    Speedometer speedometer;
+    RevCounter rev_counter;
+    qreal l_100km = 0;
+    void draw(QPainter& painter, const qreal width, const qreal rpm, const qreal kmh, const qreal liters_used) {
+        const qreal gap = 15;
+        const qreal mid = width / 2.;
+        rev_counter.draw(painter, QPointF(mid - rev_counter.radius - gap, rev_counter.radius + gap), 0.01 * rpm);
+        speedometer.draw(painter, QPointF(mid + speedometer.radius + gap, speedometer.radius + gap), kmh);
+        consumption_display.draw(painter, QPointF(mid, 180), l_100km);
+        trip_consumption.draw(painter, QPointF(mid, 25), liters_used);
+    }
+
+};
+
 struct TreeType {
     TreeType() {}
     TreeType(QString path, const qreal scale, const qreal y_offset)
@@ -256,9 +331,11 @@ public:
         p.setColor(backgroundRole(), Qt::white);
         setPalette(p);
 
-        tree_types.append(TreeType("/Users/jhammers/Downloads/trees/tree2.png", 0.2/3, 50*3));
-        tree_types.append(TreeType("/Users/jhammers/Downloads/trees/birch.png", 0.08, 140));
-        car_img.load("/Users/jhammers/Downloads/cars/pen&paper_car.png");
+        printf("%s\n", QDir::currentPath().toStdString().c_str());
+        tree_types.append(TreeType("media/trees/tree2.png", 0.2/3, 50*3));
+        tree_types.append(TreeType("media/trees/birch.png", 0.08, 140));
+        tree_types.append(TreeType("media/trees/spooky_tree.png", 0.06, 120));
+        car_img.load("media/cars/car.png");
         track.load();
         update_track_path(height());
         fill_trees();
@@ -352,6 +429,7 @@ protected slots:
         consumption_monitor.tick(car->engine.get_consumption_L_s(), dt);
         double l_100km;
         if (consumption_monitor.get_l_100km(l_100km, car->speed)) {
+            hud.l_100km = l_100km;
             printf("%.3f\n", l_100km);
         }
 
@@ -379,12 +457,13 @@ protected:
         const qreal first_tree = 100;
         const qreal track_length = track_path.boundingRect().width();
         std::uniform_int_distribution<int> tree_type(0,tree_types.size()-1);
-        std::uniform_real_distribution<qreal> dist(10,60); // distance between the trees
+        std::uniform_real_distribution<qreal> dist(5,50); // distance between the trees
         const qreal scale = 5;
 
         for (double x = first_tree; x < track_length; x += dist(rng)) {
             trees.append(Tree(tree_type(rng), x, scale, 10*scale));
         }
+        printf("%.3f\n", trees[0].pos);
     }
 
     virtual void paintEvent(QPaintEvent *) {
@@ -399,13 +478,8 @@ protected:
         const QPointF cur_p = track_path.pointAtPercent(current_percent);
         //printf("%.3f\n", current_alpha * 180 / M_PI);
 
-        // draw the speedometer & revcounter
-        Speedometer meter;
-        RevCounter revs;
-        const qreal gap = 15;
-        const qreal mid = width() / 2.;
-        revs.draw(painter, QPointF(mid - revs.radius - gap, revs.radius + gap), 0.01 * car->engine.rpm());
-        meter.draw(painter, QPointF(mid + meter.radius + gap, meter.radius + gap), Gearbox::speed2kmh(car->speed));
+        // draw the HUD speedometer & revcounter
+        hud.draw(painter, width(), car->engine.rpm(), Gearbox::speed2kmh(car->speed), consumption_monitor.liters_used);
 
         // draw the road
         painter.setPen(QPen(Qt::black, 1));
@@ -475,6 +549,7 @@ protected:
     PedalInput pedal_input;
     KeyboardInput keyboard_input;
     ConsumptionMonitor consumption_monitor;
+    HUD hud;
 };
 
 

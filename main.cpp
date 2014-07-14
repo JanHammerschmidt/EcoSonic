@@ -68,6 +68,7 @@ int main(int argc, char *argv[])
 //    return 0;
 
     QApplication a(argc, argv);
+    QDir::setCurrent("../../../../car_simulator");
     MainWindow w;
     w.show();
 
