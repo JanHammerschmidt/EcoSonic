@@ -75,7 +75,7 @@ public:
     ~MainWindow();
 
 public slots:
-    void update_plots(qreal dt, qreal elapsed);
+    void update_plots(qreal dt, qreal elapsed, ConsumptionMonitor& consumption_monitor);
 //    void tick();
 
 private slots:

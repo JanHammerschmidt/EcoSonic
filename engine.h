@@ -8,10 +8,12 @@
 struct ConsumptionMonitor
 {
     // liters_s [L/s], t [s]
-    inline void tick(double liters_s, double dt) {
+    inline void tick(double liters_s, double dt, double speed) {
         liters_used += dt * liters_s;
         t_counter += dt;
         liter_counter += dt * liters_s;
+        liters_per_second_cont = liters_s;
+        liters_per_100km_cont = liters_s / speed * 1000 * 100;
     }
     // returns true if avg makes for > 1 sek
     // l_100km [L/100km], speed [m/s]
@@ -33,6 +35,8 @@ struct ConsumptionMonitor
     double liters_used = 0;
     double liter_counter = 0;
     double t_counter = 0;
+    double liters_per_second_cont = 0;
+    double liters_per_100km_cont = 0;
 };
 
 class Engine

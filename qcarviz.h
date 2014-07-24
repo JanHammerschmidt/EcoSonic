@@ -181,16 +181,19 @@ struct HUD {
             const qreal legend_width = legend_widths[0] + legend_widths[1] + l2_x_offset;
             //const qreal width = std::max(number_width, legend_width); // total width
 
-            painter.setBrush(QBrush(Qt::gray));
+            painter.setBrush(QBrush(QColor(180,180,180)));
             painter.setPen(Qt::NoPen);
             //painter.drawRoundedRect(QRectF(pos + QPointF(-0.5 * width - border_x, -0.5 * height - border_y + rect_y_offset), QSizeF(width + 2*border_x, height + 2*border_y)), 1, 1);
             painter.drawRoundedRect(QRectF(pos + QPointF(-0.5 * rect_size.width(), -0.5 * rect_size.height() + rect_y_offset), rect_size), 5, 3);
             painter.setPen(QPen(Qt::white));
 
+            QPointF p;
             // draw number
-            painter.setFont(fonts[0]);
-            QPointF p = pos + QPointF(-0.5 * number_width, -0.5 * height + font_heights[0]);
-            painter.drawText(p, number);
+            if (draw_number) {
+                painter.setFont(fonts[0]);
+                p = pos + QPointF(-0.5 * number_width, -0.5 * height + font_heights[0]);
+                painter.drawText(p, number);
+            }
 
             // draw 1st part of legend
             painter.setFont(fonts[1]);
@@ -222,7 +225,7 @@ struct HUD {
         const qreal mid = width / 2.;
         rev_counter.draw(painter, QPointF(mid - rev_counter.radius - gap, rev_counter.radius + gap), 0.01 * rpm);
         speedometer.draw(painter, QPointF(mid + speedometer.radius + gap, speedometer.radius + gap), kmh);
-        consumption_display.draw(painter, QPointF(mid, 180), l_100km);
+        consumption_display.draw(painter, QPointF(mid, 180), l_100km, kmh >= 5);
         trip_consumption.draw(painter, QPointF(mid, 25), liters_used);
     }
 
@@ -375,7 +378,7 @@ public:
     }
 
 signals:
-    void slow_tick(qreal dt, qreal elapsed);
+    void slow_tick(qreal dt, qreal elapsed, ConsumptionMonitor& consumption_monitor);
 
 protected slots:
 
@@ -426,7 +429,7 @@ protected slots:
         current_pos += car->speed * dt * 3;
         if (current_pos > track_path.length())
             current_pos = 0;
-        consumption_monitor.tick(car->engine.get_consumption_L_s(), dt);
+        consumption_monitor.tick(car->engine.get_consumption_L_s(), dt, car->speed);
         double l_100km;
         if (consumption_monitor.get_l_100km(l_100km, car->speed)) {
             hud.l_100km = l_100km;
@@ -444,7 +447,7 @@ protected slots:
                 car->throttle = throttle_slider->value() / 100.;
                 car->breaking = breaking_slider->value() / 100.;
             }
-            emit slow_tick(elapsed - last_elapsed, elapsed);
+            emit slow_tick(elapsed - last_elapsed, elapsed, consumption_monitor);
             last_elapsed = elapsed;
         }
         return true;
@@ -533,7 +536,7 @@ protected:
         update_track_path(e->size().height());
     }
 
-    const qreal initial_pos = 100;
+    const qreal initial_pos = 40;
     qreal current_pos = initial_pos; // max is: track_path.length()
     QImage car_img;
     Track track;

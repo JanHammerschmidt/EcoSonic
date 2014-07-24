@@ -67,8 +67,8 @@ MainWindow::MainWindow(QWidget *parent)
     Track::load_sign_images();
     ui->track_editor->init(ui->track_width, ui->track_points, ui->track_show_control_points, ui->track_add_sign, ui->track_reset);
     ui->car_viz->init(&car, ui->start, ui->throttle, ui->breaking, ui->gear, this);
-    QObject::connect(ui->car_viz, SIGNAL(slow_tick(qreal,qreal)),
-                     this, SLOT(update_plots(qreal,qreal)));
+    QObject::connect(ui->car_viz, SIGNAL(slow_tick(qreal,qreal, ConsumptionMonitor&)),
+                     this, SLOT(update_plots(qreal,qreal,ConsumptionMonitor&)));
 
 #if 0
     plot_torque_map(ui->plot_speed, car.engine);
@@ -118,7 +118,7 @@ void add_plot_value(QCustomPlot* plot, qreal t, qreal y) {
 
 }
 
-void MainWindow::update_plots(qreal, qreal elapsed) {
+void MainWindow::update_plots(qreal, qreal elapsed, ConsumptionMonitor& consumption_monitor) {
     const qreal t = elapsed;
     add_plot_value(ui->plot_speed, t, car.gearbox.speed2kmh(car.speed));
     add_plot_value(ui->plot_rpm, t, car.engine.rpm());
@@ -139,6 +139,9 @@ void MainWindow::update_plots(qreal, qreal elapsed) {
     // update sound parameters
     osc.send_float("/rpm", 0.1 + car.engine.rel_rpm() * 0.8);
     //osc.send_float("/throttle", car.throttle);
+    osc.send_float("/ml_sec", consumption_monitor.liters_per_second_cont * 1000);
+    osc.send_float("/L_100km", consumption_monitor.liters_per_100km_cont);
+
 }
 
 void MainWindow::on_tabWidget_currentChanged(int index)
