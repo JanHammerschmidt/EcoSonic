@@ -346,7 +346,7 @@ public:
         QObject::connect(&tick_timer, SIGNAL(timeout()), this, SLOT(tick()));
     }
 
-    void init(Car* car, QPushButton* start_button, QSlider* throttle, QSlider* breaking, QSpinBox* gear, QMainWindow* main_window, bool start = true) {
+    void init(Car* car, QPushButton* start_button, QSlider* throttle, QSlider* breaking, QSpinBox* gear, QMainWindow* main_window, OSCSender* osc, bool start = true) {
         this->car = car;
         this->start_button = start_button;
         throttle_slider = throttle;
@@ -355,6 +355,7 @@ public:
         QObject::connect(start_button, SIGNAL(clicked()),
                          this, SLOT(start_stop()));
         keyboard_input.init(main_window);
+        consumption_monitor.osc = osc;
         if (start)
             this->start();
     }

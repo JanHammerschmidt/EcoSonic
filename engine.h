@@ -4,6 +4,7 @@
 #include "consumption_map.h"
 #include "torque_map.h"
 #include <math.h>
+#include "OSCSender.h"
 
 struct ConsumptionMonitor
 {
@@ -14,6 +15,13 @@ struct ConsumptionMonitor
         liter_counter += dt * liters_s;
         liters_per_second_cont = liters_s;
         liters_per_100km_cont = liters_s / speed * 1000 * 100;
+        ml_counter += dt * liters_s;
+        if (ml_counter >= ml_per_tick * 0.001) {
+            ml_counter -= ml_per_tick * 0.001;
+            printf("tick\n");
+            osc->send_float("/msg_consumption_tick", liters_per_100km_cont);
+        }
+
     }
     // returns true if avg makes for > 1 sek
     // l_100km [L/100km], speed [m/s]
@@ -26,14 +34,16 @@ struct ConsumptionMonitor
         } else
             return false;
     }
-
     inline void reset() {
         liters_used = 0;
         liter_counter = 0;
         t_counter = 0;
     }
-    double liters_used = 0;
-    double liter_counter = 0;
+    double ml_per_tick = 2;
+    OSCSender* osc = NULL;
+    double ml_counter = 0; // counter for tick-production
+    double liters_used = 0; // total usage
+    double liter_counter = 0; // counter for calculation of avg l/100km
     double t_counter = 0;
     double liters_per_second_cont = 0;
     double liters_per_100km_cont = 0;

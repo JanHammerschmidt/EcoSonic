@@ -7,30 +7,7 @@
 #include "car.h"
 
 #include <lib/qcustomplot/qcustomplot.h>
-#include <osc/OscOutboundPacketStream.h>
-#include <ip/UdpSocket.h>
-
-
-class OSCSender {
-public:
-    OSCSender()
-        : transmitSocket(IpEndpointName( "127.0.0.1", 57120))
-        , buffer(1024)
-    { }
-    void send_float(const char* msg, double val)
-    {
-        osc::OutboundPacketStream p(&buffer[0], buffer.size());
-        p << osc::BeginBundleImmediate
-            << osc::BeginMessage( msg )
-                << val << osc::EndMessage
-            << osc::EndBundle;
-        transmitSocket.Send(p.Data(), p.Size());
-    }
-
-protected:
-    UdpTransmitSocket transmitSocket;
-    std::vector<char> buffer;
-};
+#include "OSCSender.h"
 
 class StaticMap {
 public:

@@ -67,6 +67,7 @@ HEADERS  += mainwindow.h \
     qtrackeditor.h \
     track.h \
     lib/HID/HID.h \
-    PedalInput.h
+    PedalInput.h \
+    OSCSender.h
 
 FORMS    += mainwindow.ui
