@@ -232,6 +232,11 @@ struct HUD {
 };
 
 struct TreeType {
+    struct SpeedyImage {
+        QImage img;
+        qreal kmh;
+    };
+
     TreeType() {}
     TreeType(QString path, const qreal scale, const qreal y_offset)
         : scale(scale)
@@ -239,13 +244,22 @@ struct TreeType {
     {
         img.load(path);
     }
-    void draw_scaled(QPainter& painter, const QPointF pos, qreal scale = 1) {
+    void draw_scaled(QPainter& painter, const QPointF pos, qreal kmh, qreal scale = 1) const {
         scale *= this->scale;
         QSizeF size(img.width() * scale, img.height() * scale);
-        painter.drawImage(QRectF(pos.x() - 0.5 * size.width(), pos.y() - size.height() + y_offset * scale, size.width(), size.height()), img);
+        const QImage* img = &this->img;
+        for (int i = 0; i < speedy_images.size(); i++) {
+            if (kmh >= speedy_images[i].kmh)
+                img = &speedy_images[i].img;
+        }
+        painter.drawImage(QRectF(pos.x() - 0.5 * size.width(), pos.y() - size.height() + y_offset * scale, size.width(), size.height()), *img);
+    }
+    void add_speedy_image(QString path, const qreal kmh) {
+        speedy_images.append(SpeedyImage{QImage(path), kmh});
     }
 
     QImage img;
+    QVector<SpeedyImage> speedy_images;
     qreal scale;
     qreal y_offset;
 };
@@ -335,9 +349,11 @@ public:
         setPalette(p);
 
         printf("%s\n", QDir::currentPath().toStdString().c_str());
-        tree_types.append(TreeType("media/trees/tree.png", 0.2/3, 50*3));
-        tree_types.append(TreeType("media/trees/birch.png", 0.08, 140));
-        tree_types.append(TreeType("media/trees/spooky_tree.png", 0.06, 120));
+
+        add_tree_type("tree", 0.2/3, 50*3);
+        add_tree_type("birch", 0.08, 140);
+        add_tree_type("spooky_tree", 0.06, 120);
+
         car_img.load("media/cars/car.png");
         track.load();
         update_track_path(height());
@@ -520,11 +536,21 @@ protected:
         for (Tree tree : trees) {
             const qreal tree_x = tree.track_x(cur_p.x());
             QPointF tree_pos(tree_x, track_bottom);
-            tree_types[tree.type].draw_scaled(painter, tree_pos, tree.scale);
+            tree_types[tree.type].draw_scaled(painter, tree_pos, Gearbox::speed2kmh(car->speed), tree.scale);
         }
 
         if (started)
             update();
+    }
+
+    void add_tree_type(const QString name, const qreal scale, const qreal y_offset) {
+        const QString path = "media/trees/" + name;
+        tree_types.append(TreeType(path + "_base.png", scale, y_offset));
+        tree_types.last().add_speedy_image(path + "1", 10);
+        tree_types.last().add_speedy_image(path + "2", 30);
+        tree_types.last().add_speedy_image(path + "3", 50);
+        tree_types.last().add_speedy_image(path + "4", 70);
+        tree_types.last().add_speedy_image(path + "5", 100);
     }
 
     void update_track_path(const int height) {
