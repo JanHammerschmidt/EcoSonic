@@ -16,6 +16,7 @@
 #include <QTextStream>
 #include <QShortcut>
 #include <QMainWindow>
+#include <QSvgGenerator>
 #include <random>
 #include "qtrackeditor.h"
 #include "PedalInput.h"
@@ -373,19 +374,7 @@ public:
         keyboard_input.init(main_window);
         consumption_monitor.osc = osc;
         if (start)
-            this->start();
-    }
-
-    void start() {
-        time_delta.start();
-        tick_timer.start();
-        started = true;
-        start_button->setText("Pause");
-    }
-    void stop() {
-        tick_timer.stop();
-        started = false;
-        start_button->setText("Cont.");
+            QTimer::singleShot(500, this, SLOT(start()));
     }
 
     void copy_from_track_editor(QTrackEditor* track_editor) {
@@ -401,6 +390,19 @@ protected slots:
 
     void start_stop() {
         started ? stop() : start();
+    }
+
+    void start() {
+        time_delta.start();
+        tick_timer.start();
+        started = true;
+        start_button->setText("Pause");
+    }
+    void stop() {
+        tick_timer.stop();
+        started = false;
+        start_button->setText("Cont.");
+        save_svg();
     }
 
     bool tick() {
@@ -487,15 +489,23 @@ protected:
         printf("%.3f\n", trees[0].pos);
     }
 
-    virtual void paintEvent(QPaintEvent *) {
-//        static FPSTimer fps("paint: ");
-//        fps.addFrame();
-        if (started)
-            tick();
+    void save_svg() {
+        QSvgGenerator generator;
+        generator.setFileName("/Users/jhammers/car_simulator.svg");
+        const QSize size = this->size();
+        generator.setSize(size);
+        generator.setViewBox(QRect(0, 0, size.width(), size.height()));
 
+        QPainter painter;
+        painter.begin(&generator);
+        draw(painter);
+        painter.end();
+    }
+
+    void draw(QPainter& painter) {
         const qreal current_percent = track_path.percentAtLength(current_pos);
         const qreal car_x_pos = 50;
-        QPainter painter(this);
+
         const QPointF cur_p = track_path.pointAtPercent(current_percent);
         //printf("%.3f\n", current_alpha * 180 / M_PI);
 
@@ -535,9 +545,21 @@ protected:
         const qreal track_bottom = track_path.boundingRect().bottom();
         for (Tree tree : trees) {
             const qreal tree_x = tree.track_x(cur_p.x());
+            if (tree_x > size().width() + cur_p.x() + 200)
+                continue;
             QPointF tree_pos(tree_x, track_bottom);
             tree_types[tree.type].draw_scaled(painter, tree_pos, Gearbox::speed2kmh(car->speed), tree.scale);
         }
+    }
+
+    virtual void paintEvent(QPaintEvent *) {
+//        static FPSTimer fps("paint: ");
+//        fps.addFrame();
+        if (started)
+            tick();
+
+        QPainter painter(this);
+        draw(painter);
 
         if (started)
             update();
