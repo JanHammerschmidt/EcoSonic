@@ -2,7 +2,7 @@
 #include "ui_mainwindow.h"
 #include "engine.h"
 
-QVector<Track::SignImage> Track::sign_images;
+Track::Images Track::images;
 
 void plot_torque_map(QCustomPlot* plot, Engine& engine)
 {
@@ -64,7 +64,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     last_tab = ui->tabWidget->currentIndex();
-    Track::load_sign_images();
+    Track::images.load_sign_images();
     ui->track_editor->init(ui->track_width, ui->track_points, ui->track_show_control_points, ui->track_add_sign, ui->track_reset);
     ui->car_viz->init(&car, ui->start, ui->throttle, ui->breaking, ui->gear, this, &osc);
     QObject::connect(ui->car_viz, SIGNAL(slow_tick(qreal,qreal, ConsumptionMonitor&)),

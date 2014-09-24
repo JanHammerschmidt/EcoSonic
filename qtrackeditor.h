@@ -120,9 +120,9 @@ protected:
         sign_moving = -1;
         QPainterPath path;
         track.get_path(path, h);
-        QRectF pos;
+        QRectF pos, pole_pos;
         for (int i = 0; i < track.signs.size(); i++) {
-            if (track.signs[i].get_position(pos, path) && pos.contains(mp)) {
+            if (track.signs[i].get_position(pos, pole_pos, path) && pos.contains(mp)) {
                 sign_moving = i;
                 break;
             }
@@ -132,7 +132,7 @@ protected:
                 QMenu menu(this);
                 const QString del("Delete");
                 menu.addAction(del);
-                for (auto& i : track.sign_images)
+                for (auto& i : track.images.sign_images)
                     menu.addAction(i.name);
                 QAction* a = menu.exec(e->globalPos());
                 if (a) {
@@ -140,8 +140,8 @@ protected:
                     if (text == del)
                         track.signs.remove(sign_moving);
                     else {
-                        for (int i = 0; i < track.sign_images.size(); i++) {
-                            if (text == track.sign_images[i].name) {
+                        for (int i = 0; i < track.images.sign_images.size(); i++) {
+                            if (text == track.images.sign_images[i].name) {
                                 track.signs[sign_moving].type = (Track::Sign::Type) i;
                                 break;
                             }
