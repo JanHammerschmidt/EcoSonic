@@ -33,7 +33,17 @@ struct Track {
     struct Sign {
         enum Type {
             Stop = 0,
+            Speed30,
+            Speed40,
+            Speed50,
             Speed60,
+            Speed70,
+            Speed80,
+            Speed90,
+            Speed100,
+            Speed110,
+            Speed120,
+            Speed130,
             TrafficLight,
             __length
         };
@@ -44,6 +54,7 @@ struct Track {
         };
         Sign() {}
         Sign(const Type type, const qreal at_length) : type(type), at_length(at_length) {}
+        bool operator<(const Sign& s2) const { return at_length < s2.at_length; }
         bool get_position(QRectF& pos, QRectF& pole_pos, QPainterPath& path) {
             if (at_length > path.length())
                 return false;
@@ -71,6 +82,9 @@ struct Track {
         qreal at_length = 0;
         TrafficLightState traffic_light_state = Red;
     };
+    void sort_signs() {
+        std::sort(signs.begin(), signs.end());
+    }
 
     QVector<QPointF> points;
     int num_points = 0;
@@ -86,7 +100,11 @@ struct Track {
             pole_size = pole_image.defaultSize() * 1;
             sign_images.resize(Sign::__length);
             sign_images[Sign::Stop].load("media/signs/stop-sign.svg", "Stop", 0.02);
-            sign_images[Sign::Speed60].load("media/signs/60sign.svg", "Speed: 60", 0.05);
+            for (int i = 0; i < 11; i++) {
+                QString path; path.sprintf("media/signs/%isign.svg", 30+i*10);
+                QString name; name.sprintf("Speed: %i", 30+i*10);
+                sign_images[Sign::Speed30 + i].load(path, name, 0.05);
+            }
             traffic_light_images[Sign::Red].load("media/signs/traffic_red.svg", "", 0.07);
             traffic_light_images[Sign::Yellow].load("media/signs/traffic_yellow.svg", "", 0.07);
             traffic_light_images[Sign::Green].load("media/signs/traffic_green.svg", "", 0.07);

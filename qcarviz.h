@@ -23,6 +23,8 @@
 #include "track.h"
 #include "car.h"
 
+#define DEFAULT_SPEED_LIMIT 100 // kmh
+
 static std::mt19937_64 rng(std::random_device{}());
 
 struct FPSTimer {
@@ -379,8 +381,22 @@ public:
 
     void copy_from_track_editor(QTrackEditor* track_editor) {
         track = track_editor->track;
+        track.sort_signs();
         update_track_path(height());
+        update_speed_limit();
         fill_trees();
+    }
+    void update_speed_limit() {
+        if (track.signs.size() < 0 || current_pos < track.signs[0].at_length)
+            current_speed_limit = DEFAULT_SPEED_LIMIT;
+        else {
+            for (Track::Sign s : track.signs) {
+                if (current_pos < s.at_length)
+                    break;
+                if (s.type >= Track::Sign::Speed30 && s.type <= Track::Sign::Speed130)
+                    current_speed_limit = 30 + (s.type - Track::Sign::Speed30) * 10;
+            }
+        }
     }
 
 signals:
@@ -466,6 +482,7 @@ protected slots:
                 car->throttle = throttle_slider->value() / 100.;
                 car->breaking = breaking_slider->value() / 100.;
             }
+            update_speed_limit();
             emit slow_tick(elapsed - last_elapsed, elapsed, consumption_monitor);
             last_elapsed = elapsed;
         }
@@ -508,6 +525,12 @@ protected:
 
         const QPointF cur_p = track_path.pointAtPercent(current_percent);
         //printf("%.3f\n", current_alpha * 180 / M_PI);
+
+        //draw the current speed limit
+        QString number; number.sprintf("%04.1f", current_speed_limit);
+        painter.setFont(QFont{"Eurostile", 18, QFont::Bold});
+        QPointF p = {300,300};
+        painter.drawText(p, number);
 
         // draw the HUD speedometer & revcounter
         hud.draw(painter, width(), car->engine.rpm(), Gearbox::speed2kmh(car->speed), consumption_monitor.liters_used);
@@ -586,7 +609,8 @@ protected:
     }
 
     const qreal initial_pos = 40;
-    qreal current_pos = initial_pos; // max is: track_path.length()
+    qreal current_pos = initial_pos; // current position of the car. max is: track_path.length()
+    qreal current_speed_limit = DEFAULT_SPEED_LIMIT;
     QImage car_img;
     Track track;
     TimeDelta time_delta;
