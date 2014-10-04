@@ -1,6 +1,11 @@
 #ifndef CONSUMPTION_MAP_H
 #define CONSUMPTION_MAP_H
 
+#include <math.h>
+#include <QtGlobal>
+#include <QPointF>
+#include <QTransform>
+
 template<class T> inline T sqr(const T x) { return x*x; }
 
 // ConsumptionMap translates (relative) torque & rpm to (relative) consumption (100%- (e.g.) 150%) [1-1.5]

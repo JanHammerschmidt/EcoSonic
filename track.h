@@ -52,6 +52,10 @@ struct Track {
             Yellow,
             Green
         };
+        struct TrafficLightInfo {
+            qreal trigger_distance = 50; //200;
+            std::pair<qreal,qreal> time_range = {3000,3000}; //{0,3000};
+        };
         Sign() {}
         Sign(const Type type, const qreal at_length) : type(type), at_length(at_length) {}
         bool operator<(const Sign& s2) const { return at_length < s2.at_length; }
@@ -77,10 +81,13 @@ struct Track {
             img.is_svg ? img.svg->render(&painter, pos) : painter.drawImage(pos, *img.img);
             return true;
         }
+        bool is_speed_sign() const { return type >= Speed30 && type <= Speed130; }
+        qreal speed_limit() const { Q_ASSERT(is_speed_sign()); return 30 + (type - Speed30) * 10; };
 
         Type type = Stop;
         qreal at_length = 0;
         TrafficLightState traffic_light_state = Red;
+        TrafficLightInfo traffic_light_info;
     };
     void sort_signs() {
         std::sort(signs.begin(), signs.end());
@@ -116,6 +123,8 @@ struct Track {
     inline bool save(const QString filename = QDir::homePath()+"/track.bin");
     inline bool load(const QString filename = QDir::homePath()+"/track.bin");
     void get_path(QPainterPath& path, const qreal height) {
+        if (!points.size())
+            return;
         const qreal h = height;
         path.moveTo(tf(points[0],h));
         for (int i = 0; i < num_points; i++) {
@@ -124,6 +133,8 @@ struct Track {
         }
     }
     void get_path_points(QPainterPath& path, const qreal height) { // const bool main_points_only = false
+        if (!points.size())
+            return;
         const qreal h = height;
         path.moveTo(tf(points[0],h));
         for (int i = 1; i <= num_points*3; i++) {
@@ -180,6 +191,7 @@ bool Track::load(const QString filename) {
         return false;
     QDataStream in(&file);
     in >> *this;
+    sort_signs();
     return true;
 }
 

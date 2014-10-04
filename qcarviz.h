@@ -17,13 +17,14 @@
 #include <QShortcut>
 #include <QMainWindow>
 #include <QSvgGenerator>
+#include <QSound>
 #include <random>
 #include "qtrackeditor.h"
 #include "PedalInput.h"
 #include "track.h"
 #include "car.h"
 
-#define DEFAULT_SPEED_LIMIT 100 // kmh
+#define DEFAULT_SPEED_LIMIT 300 // kmh
 
 static std::mt19937_64 rng(std::random_device{}());
 
@@ -158,9 +159,10 @@ struct RevCounter : public Speedometer
 
 struct HUD {
     struct ConsumptionDisplay {
-        ConsumptionDisplay(QString legend2 = "100km", const char* const number_format = "%04.1f")
+        ConsumptionDisplay(QString legend1 = "L/", QString legend2 = "100km", const char* const number_format = "%04.1f")
             : number_format(number_format)
         {
+            legend[0] = legend1;
             legend[1] = legend2;
             for (int i = 0; i < 3; i++)
                 font_heights[i] = font_metrics[i].height();
@@ -219,7 +221,7 @@ struct HUD {
     };
 
     ConsumptionDisplay consumption_display;
-    ConsumptionDisplay trip_consumption{"Trip", "%04.2f"};
+    ConsumptionDisplay trip_consumption{"dl/", "Trip", "%04.2f"};
     Speedometer speedometer;
     RevCounter rev_counter;
     qreal l_100km = 0;
@@ -229,7 +231,7 @@ struct HUD {
         rev_counter.draw(painter, QPointF(mid - rev_counter.radius - gap, rev_counter.radius + gap), 0.01 * rpm);
         speedometer.draw(painter, QPointF(mid + speedometer.radius + gap, speedometer.radius + gap), kmh);
         consumption_display.draw(painter, QPointF(mid, 180), l_100km, kmh >= 5);
-        trip_consumption.draw(painter, QPointF(mid, 25), liters_used);
+        trip_consumption.draw(painter, QPointF(mid, 25), liters_used * 10);
     }
 
 };
@@ -337,68 +339,19 @@ protected:
     bool clutch = false;
 };
 
+struct SpeedObserver;
+
 class QCarViz : public QWidget
 {
     Q_OBJECT
 
 public:
-    friend class CarUpdateThread;
-    QCarViz(QWidget *parent = 0)
-        : QWidget(parent)
-    {
-        setAutoFillBackground(true);
-        QPalette p = palette();
-        p.setColor(backgroundRole(), Qt::white);
-        setPalette(p);
+    friend struct SpeedObserver;
+    QCarViz(QWidget *parent = 0);
 
-        printf("%s\n", QDir::currentPath().toStdString().c_str());
+    void init(Car* car, QPushButton* start_button, QSlider* throttle, QSlider* breaking, QSpinBox* gear, QMainWindow* main_window, OSCSender* osc, bool start = true);
 
-        add_tree_type("tree", 0.2/3, 50*3);
-        add_tree_type("birch", 0.08, 140);
-        add_tree_type("spooky_tree", 0.06, 120);
-
-        car_img.load("media/cars/car.png");
-        track.load();
-        update_track_path(height());
-        fill_trees();
-        tick_timer.setInterval(30); // minimum simulation interval
-        QObject::connect(&tick_timer, SIGNAL(timeout()), this, SLOT(tick()));
-    }
-
-    void init(Car* car, QPushButton* start_button, QSlider* throttle, QSlider* breaking, QSpinBox* gear, QMainWindow* main_window, OSCSender* osc, bool start = true) {
-        this->car = car;
-        this->start_button = start_button;
-        throttle_slider = throttle;
-        breaking_slider = breaking;
-        gear_spinbox = gear;
-        QObject::connect(start_button, SIGNAL(clicked()),
-                         this, SLOT(start_stop()));
-        keyboard_input.init(main_window);
-        consumption_monitor.osc = osc;
-        if (start)
-            QTimer::singleShot(500, this, SLOT(start()));
-    }
-
-    void copy_from_track_editor(QTrackEditor* track_editor) {
-        track = track_editor->track;
-        track.sort_signs();
-        update_track_path(height());
-        update_speed_limit();
-        fill_trees();
-    }
-    void update_speed_limit() {
-        if (track.signs.size() < 0 || current_pos < track.signs[0].at_length)
-            current_speed_limit = DEFAULT_SPEED_LIMIT;
-        else {
-            for (Track::Sign s : track.signs) {
-                if (current_pos < s.at_length)
-                    break;
-                if (s.type >= Track::Sign::Speed30 && s.type <= Track::Sign::Speed130)
-                    current_speed_limit = 30 + (s.type - Track::Sign::Speed30) * 10;
-            }
-        }
-    }
-
+    void copy_from_track_editor(QTrackEditor* track_editor);
 signals:
     void slow_tick(qreal dt, qreal elapsed, ConsumptionMonitor& consumption_monitor);
 
@@ -421,73 +374,7 @@ protected slots:
         save_svg();
     }
 
-    bool tick() {
-        Q_ASSERT(started);
-        qreal dt;
-        if (!time_delta.get_time_delta(dt))
-            return false;
-
-        static bool changed = false;
-        // keyboard input
-        if (keyboard_input.update()) {
-            car->throttle = keyboard_input.throttle();
-            car->breaking = keyboard_input.breaking();
-            changed = true;
-        }
-        const int gear_change = keyboard_input.gear_change();
-        if (gear_change) {
-            if (gear_change > 0)
-                car->gearbox.gear_up();
-            else if (gear_change < 0)
-                car->gearbox.gear_down();
-            gear_spinbox->setValue(car->gearbox.gear+1);
-        }
-        const bool toggle_clutch = keyboard_input.toggle_clutch();
-        if (toggle_clutch) {
-            Clutch& clutch = car->gearbox.clutch;
-            if (clutch.engage)
-                clutch.disengage();
-            else
-                clutch.clutch_in(car->engine, &car->gearbox, car->speed);
-        }
-
-        // pedal input
-        if (pedal_input.valid() && pedal_input.update()) {
-            car->throttle = pedal_input.gas();
-            car->breaking = pedal_input.brake();
-            changed = true;
-        }
-
-        const qreal alpha = atan(-track_path.slopeAtPercent(track_path.percentAtLength(current_pos))); // slope [rad]
-        Q_ASSERT(!isnan(alpha));
-        car->tick(dt, alpha);
-        current_pos += car->speed * dt * 3;
-        if (current_pos > track_path.length())
-            current_pos = 0;
-        consumption_monitor.tick(car->engine.get_consumption_L_s(), dt, car->speed);
-        double l_100km;
-        if (consumption_monitor.get_l_100km(l_100km, car->speed)) {
-            hud.l_100km = l_100km;
-            printf("%.3f\n", l_100km);
-        }
-
-        static qreal last_elapsed = 0;
-        qreal elapsed = time_delta.get_elapsed();
-        if (elapsed - last_elapsed > 0.05) {
-            if (changed) {
-                throttle_slider->setValue(car->throttle * 100);
-                breaking_slider->setValue(car->breaking * 100);
-                changed = false;
-            } else {
-                car->throttle = throttle_slider->value() / 100.;
-                car->breaking = breaking_slider->value() / 100.;
-            }
-            update_speed_limit();
-            emit slow_tick(elapsed - last_elapsed, elapsed, consumption_monitor);
-            last_elapsed = elapsed;
-        }
-        return true;
-    }
+    bool tick();
 
 protected:
 
@@ -503,7 +390,7 @@ protected:
         for (double x = first_tree; x < track_length; x += dist(rng)) {
             trees.append(Tree(tree_type(rng), x, scale, 10*scale));
         }
-        printf("%.3f\n", trees[0].pos);
+        //printf("%.3f\n", trees[0].pos);
     }
 
     void save_svg() {
@@ -519,61 +406,7 @@ protected:
         painter.end();
     }
 
-    void draw(QPainter& painter) {
-        const qreal current_percent = track_path.percentAtLength(current_pos);
-        const qreal car_x_pos = 50;
-
-        const QPointF cur_p = track_path.pointAtPercent(current_percent);
-        //printf("%.3f\n", current_alpha * 180 / M_PI);
-
-        //draw the current speed limit
-        QString number; number.sprintf("%04.1f", current_speed_limit);
-        painter.setFont(QFont{"Eurostile", 18, QFont::Bold});
-        QPointF p = {300,300};
-        painter.drawText(p, number);
-
-        // draw the HUD speedometer & revcounter
-        hud.draw(painter, width(), car->engine.rpm(), Gearbox::speed2kmh(car->speed), consumption_monitor.liters_used);
-
-        // draw the road
-        painter.setPen(QPen(Qt::black, 1));
-        painter.setBrush(Qt::NoBrush);
-        QTransform t;
-        t.translate(car_x_pos - cur_p.x(),0);
-        painter.setTransform(t);
-        painter.drawPath(track_path);
-
-        // draw the signs
-        for (int i = 0; i < track.signs.size(); i++) {
-            track.signs[i].draw(painter, track_path);
-        }
-
-        // draw the car
-        const qreal car_width = 60.;
-        const qreal car_height = (qreal) car_img.size().height() / car_img.size().width() * car_width;
-
-        t.reset();
-        t.translate(car_x_pos, cur_p.y());
-        //t.rotateRadians(atan(slope));
-        t.rotate(-track_path.angleAtPercent(current_percent));
-        t.translate(-car_width/2, -car_height);
-        painter.setTransform(t);
-        painter.drawImage(QRectF(0,0, car_width, car_height), car_img);
-
-        // draw the trees in the foreground
-        t.reset();
-        t.translate(car_x_pos - cur_p.x(),0);
-        painter.setTransform(t);
-
-        const qreal track_bottom = track_path.boundingRect().bottom();
-        for (Tree tree : trees) {
-            const qreal tree_x = tree.track_x(cur_p.x());
-            if (tree_x > size().width() + cur_p.x() + 200)
-                continue;
-            QPointF tree_pos(tree_x, track_bottom);
-            tree_types[tree.type].draw_scaled(painter, tree_pos, Gearbox::speed2kmh(car->speed), tree.scale);
-        }
-    }
+    void draw(QPainter& painter);
 
     virtual void paintEvent(QPaintEvent *) {
 //        static FPSTimer fps("paint: ");
@@ -610,9 +443,9 @@ protected:
 
     const qreal initial_pos = 40;
     qreal current_pos = initial_pos; // current position of the car. max is: track_path.length()
-    qreal current_speed_limit = DEFAULT_SPEED_LIMIT;
     QImage car_img;
     Track track;
+    std::auto_ptr<SpeedObserver> speedObserver;
     TimeDelta time_delta;
     Car* car;
     QPainterPath track_path;
@@ -628,7 +461,124 @@ protected:
     KeyboardInput keyboard_input;
     ConsumptionMonitor consumption_monitor;
     HUD hud;
+    QElapsedTimer flash_timer; // controls the display of a flash (white screen)
 };
 
+#include <QtConcurrent>
+
+#define NEXT_SIGN_DISTANCE 800 // ??
+#define MIN_DRIVING_DISTANCE 400 // ??
+#define TOO_SLOW_TOLERANCE 0.2
+#define TOO_FAST_TOLERANCE 0.1
+#define MAX_TOO_FAST 2000 // ms
+#define MAX_TOO_SLOW 3000 // ms
+#define COOLDOWN_TIME 3000 // how long nothing happens after a honking (ms)
+
+struct SpeedObserver {
+    SpeedObserver(QCarViz& carViz, OSCSender& osc)
+        : track(carViz.track), carViz(carViz), osc(osc)
+    {
+        last_state_change.start();
+        cooldown_timer.start();
+    }
+    enum State {
+        OK,
+        too_slow,
+        too_fast,
+    };
+    static void trigger_traffic_light(Track::Sign* traffic_light) {
+        std::pair<qreal,qreal>& time_range = traffic_light->traffic_light_info.time_range;
+        std::uniform_int_distribution<int> time(time_range.first,time_range.second);
+        QThread::msleep(time(rng));
+        traffic_light->traffic_light_state = Track::Sign::Yellow;
+        QThread::msleep(1000);
+        traffic_light->traffic_light_state = Track::Sign::Green;
+        printf("green!");
+    }
+    void tick() {
+        const qreal current_pos = carViz.current_pos;
+        Track::Sign* current_speed_sign = NULL;
+        Track::Sign* current_hold_sign = NULL;
+        Track::Sign* next_sign = NULL;
+        for (Track::Sign& s : track.signs) {
+            if (current_pos < s.at_length) {
+                if (s.at_length - current_pos > NEXT_SIGN_DISTANCE)
+                    break;
+                if ((s.type == Track::Sign::TrafficLight && s.traffic_light_state == Track::Sign::Green) // green traffic lights
+                    || (s.is_speed_sign() && s.type > current_speed_sign->type)) { // faster speed sign
+                        continue; // skip!
+                }
+                next_sign = &s;
+                break;
+            } else if (s.is_speed_sign()) {
+                current_speed_sign = &s;
+            } else
+                current_hold_sign = &s;
+        }
+        current_speed_limit = current_speed_sign ? current_speed_sign->speed_limit() : DEFAULT_SPEED_LIMIT;
+
+        if (next_sign && next_sign->type == Track::Sign::TrafficLight && next_sign->traffic_light_state == Track::Sign::Red
+                && (next_sign->at_length - current_pos) < next_sign->traffic_light_info.trigger_distance)
+        {
+            printf("!!");
+            next_sign->traffic_light_state = Track::Sign::Yellow;
+            QtConcurrent::run(trigger_traffic_light, next_sign);
+        }
+        const qreal kmh = Gearbox::speed2kmh(carViz.car->speed);
+        const bool toofast = kmh > current_speed_limit * (1+TOO_FAST_TOLERANCE);
+        bool tooslow = kmh < current_speed_limit * (1-TOO_SLOW_TOLERANCE);
+        if (tooslow) {
+            if (carViz.current_pos < MIN_DRIVING_DISTANCE)
+                tooslow = false;
+            if (next_sign && (next_sign->type == Track::Sign::TrafficLight || next_sign->type == Track::Sign::Stop
+                || (next_sign->is_speed_sign() && kmh < next_sign->speed_limit() * (1-TOO_SLOW_TOLERANCE))))
+            {
+                    tooslow = false;
+            }
+        }
+        if (cooldown_timer.elapsed() < COOLDOWN_TIME)
+            return;
+        if (current_hold_sign
+                && !(current_hold_sign->type == Track::Sign::TrafficLight && current_hold_sign->traffic_light_state != Track::Sign::Red)
+                && current_pos - current_hold_sign->at_length > 10)
+        {
+            osc.send_float("/flash", 0);
+            carViz.flash_timer.start();
+            cooldown_timer.start();
+            return;
+        }
+        if (toofast) {
+            if (state == too_fast) {
+                if (last_state_change.elapsed() > MAX_TOO_FAST) {
+                    osc.send_float("/flash", 0);
+                    carViz.flash_timer.start();
+                    cooldown_timer.start();
+                    state = OK;
+                }
+            } else {
+                state = too_fast;
+                last_state_change.start();
+            }
+        } else if (tooslow) {
+            if (state == too_slow) {
+                if (last_state_change.elapsed() > MAX_TOO_SLOW) {
+                    osc.send_float("/honk", 0);
+                    cooldown_timer.start();
+                    state = OK;
+                }
+            } else {
+                state = too_slow;
+                last_state_change.start();
+            }
+        }
+    }
+    State state = OK;
+    QElapsedTimer last_state_change;
+    QElapsedTimer cooldown_timer;
+    qreal current_speed_limit = DEFAULT_SPEED_LIMIT;
+    Track& track;
+    QCarViz& carViz;
+    OSCSender& osc;
+};
 
 #endif // QCARVIZ_H

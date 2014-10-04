@@ -8,6 +8,7 @@
 #include <QSpinBox>
 #include <QPushButton>
 #include <QMenu>
+#include <math.h>
 #include "track.h"
 
 // TODO: angleAtPercent ?

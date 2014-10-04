@@ -7,7 +7,7 @@
 QT       += core gui
 QT      += svg
 
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport multimedia concurrent
 
 TARGET = car_simulator
 TEMPLATE = app
@@ -24,8 +24,8 @@ INCLUDEPATH += . \
     ./lib/oscpack_1_1_0 \
     ./lib/HID
 
-CONFIG += precompile_header c++11
-PRECOMPILED_HEADER = stable.h
+CONFIG += c++11 #precompile_header
+#PRECOMPILED_HEADER = stable.h
 
 SOURCES += main.cpp\
         mainwindow.cpp \
@@ -39,7 +39,8 @@ SOURCES += main.cpp\
     lib/oscpack_1_1_0/ip/posix/NetworkingUtils.cpp \
     lib/oscpack_1_1_0/ip/posix/UdpSocket.cpp \
     qtrackeditor.cpp \
-    lib/HID/HID.cpp
+    lib/HID/HID.cpp \
+    qcarviz.cpp
 
 HEADERS  += mainwindow.h \
     engine.h \
