@@ -18,7 +18,6 @@ struct ConsumptionMonitor
         ml_counter += dt * liters_s;
         if (ml_counter >= ml_per_tick * 0.001) {
             ml_counter -= ml_per_tick * 0.001;
-            printf("tick\n");
             osc->send_float("/msg_consumption_tick", liters_per_100km_cont);
         }
 
@@ -54,6 +53,8 @@ class Engine
 public:
 
     Engine(const qreal max_rpm, const qreal max_torque);
+
+    void reset() { set_rpm(2500); }
 
     // throttle (0..1)
     inline qreal update_torque(qreal throttle)

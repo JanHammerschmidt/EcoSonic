@@ -3,7 +3,8 @@
 
 #include "engine.h"
 
-struct Gearbox;
+class Gearbox;
+class Car;
 
 // kinematic clutch, loosely based on
 // http://blog.xogeny.com/blog/part-2-kinematic/
@@ -28,8 +29,10 @@ struct Clutch
     bool engage = false; // is engaged or should engage
 };
 
-struct Gearbox
+class Gearbox : public QObject
 {
+    Q_OBJECT
+public:
     Gearbox()
         : gear(0)
         , end_transmission(4.764)
@@ -44,14 +47,19 @@ struct Gearbox
         memcpy(mass_factors.data(), mf, sizeof(mf));
     }
 
+    void reset() {
+        gear = 0;
+        emit gear_changed(0);
+    }
+
     void update_engine_speed(Engine& engine, qreal speed, qreal dt) {
         if (!clutch.acting() && clutch.engage) { // clutch is fully engaged
             engine.set_rpm(speed2engine_rpm(speed));
         } else {
             const double delta_w = (engine.torque_out - engine.torque_counter) / engine.inertia;
             engine.angular_velocity += delta_w * dt;
-            if (clutch.engage)
-                printf("is: %.3f (%.3f)\n", delta_w, Engine::angular_velocity2rpm(delta_w));
+//            if (clutch.engage)
+//                printf("is: %.3f (%.3f)\n", delta_w, Engine::angular_velocity2rpm(delta_w));
         }
         Q_ASSERT(!isnan(engine.angular_velocity));
 
@@ -85,6 +93,9 @@ struct Gearbox
         Q_ASSERT(!isnan(rpm));
         return rpm * 60; // [u/min]
     }
+
+    // (only clutching in!)
+    void auto_clutch_control(Car* car);
 
 //    void auto_clutch_control(Engine& engine, const qreal dt) {
 //        static bool releasing = true;
@@ -150,6 +161,10 @@ struct Gearbox
         return kmh / 3.6;
     }
 
+signals:
+    void gear_changed(int gear);
+
+public:
     int gear;
     QVector<qreal> gears; // gear-transmissions
     QVector<qreal> mass_factors;
@@ -167,7 +182,7 @@ inline void Clutch::clutch_in(const Engine& engine, const Gearbox* const gearbox
         const qreal rpm = gearbox->speed2engine_rpm(speed); // what the engine rpm should be
         w_t0 = engine.angular_velocity - Engine::rpm2angular_velocity(rpm);
         a_w = -w_t0 / t_shift;
-        printf("should be: %.3f (%.3f) cur: %.3f/%.3f\n", a_w, Engine::angular_velocity2rpm(a_w), engine.angular_velocity, Engine::angular_velocity2rpm(engine.angular_velocity));
+        //printf("should be: %.3f (%.3f) cur: %.3f/%.3f\n", a_w, Engine::angular_velocity2rpm(a_w), engine.angular_velocity, Engine::angular_velocity2rpm(engine.angular_velocity));
         engage = true;
     }
 }

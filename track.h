@@ -49,12 +49,14 @@ struct Track {
         };
         enum TrafficLightState {
             Red = 0,
+            Red_pending,
             Yellow,
-            Green
+            Green,
+            __State_length
         };
         struct TrafficLightInfo {
-            qreal trigger_distance = 50; //200;
-            std::pair<qreal,qreal> time_range = {3000,3000}; //{0,3000};
+            qreal trigger_distance = 500; //200;
+            std::pair<qreal,qreal> time_range = {7000,7000}; //{3000,3000}; //{0,3000};
         };
         Sign() {}
         Sign(const Type type, const qreal at_length) : type(type), at_length(at_length) {}
@@ -101,7 +103,7 @@ struct Track {
         QVector<SignImage> sign_images;
         QSvgRenderer pole_image;
         QSize pole_size;
-        SignImage traffic_light_images[3];
+        SignImage traffic_light_images[Sign::__State_length];
         void load_sign_images() {
             pole_image.load(QString("media/signs/pole.svg"));
             pole_size = pole_image.defaultSize() * 1;
@@ -113,6 +115,7 @@ struct Track {
                 sign_images[Sign::Speed30 + i].load(path, name, 0.05);
             }
             traffic_light_images[Sign::Red].load("media/signs/traffic_red.svg", "", 0.07);
+            traffic_light_images[Sign::Red_pending].load("media/signs/traffic_red.svg", "", 0.07);
             traffic_light_images[Sign::Yellow].load("media/signs/traffic_yellow.svg", "", 0.07);
             traffic_light_images[Sign::Green].load("media/signs/traffic_green.svg", "", 0.07);
             sign_images[Sign::TrafficLight].name = "Traffic Light";

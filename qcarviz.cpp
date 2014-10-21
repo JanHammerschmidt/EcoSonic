@@ -79,6 +79,9 @@ bool QCarViz::tick() {
         else
             clutch.clutch_in(car->engine, &car->gearbox, car->speed);
     }
+    if (track_started)
+        car->gearbox.auto_clutch_control(car);
+
 
     // pedal input
     if (pedal_input.valid() && pedal_input.update()) {
@@ -86,6 +89,11 @@ bool QCarViz::tick() {
         car->breaking = pedal_input.brake();
         changed = true;
     }
+    if (!track_started && car->throttle > 0) {
+        track_started = true;
+        track_started_time = time_delta.get_elapsed();
+    }
+
 
     const qreal alpha = !track_path.length() ? 0 : atan(-track_path.slopeAtPercent(track_path.percentAtLength(current_pos))); // slope [rad]
     Q_ASSERT(!isnan(alpha));
@@ -93,14 +101,15 @@ bool QCarViz::tick() {
     current_pos += car->speed * dt * 3;
     if (current_pos >= track_path.length()) {
         //current_pos = 0;
-        current_pos = track_path.length();
+        //current_pos = track_path.length();
         stop();
     }
-    consumption_monitor.tick(car->engine.get_consumption_L_s(), dt, car->speed);
+    if (track_started)
+        consumption_monitor.tick(car->engine.get_consumption_L_s(), dt, car->speed);
     double l_100km;
     if (consumption_monitor.get_l_100km(l_100km, car->speed)) {
         hud.l_100km = l_100km;
-        printf("%.3f\n", l_100km);
+        //printf("%.3f\n", l_100km);
     }
 
     static qreal last_elapsed = 0;
@@ -131,11 +140,13 @@ void QCarViz::draw(QPainter& painter)
     const QPointF cur_p = track_path.pointAtPercent(current_percent);
     //printf("%.3f\n", current_alpha * 180 / M_PI);
 
-    //draw the current speed limit
-    QString number; number.sprintf("%04.1f", current_pos);
+    //draw the current speed limit / current_pos / time elapsed
+    QString number; number.sprintf("%04.1f", time_delta.get_elapsed() - track_started_time);
     painter.setFont(QFont{"Eurostile", 18, QFont::Bold});
     QPointF p = {300,300};
-    painter.drawText(p, number);
+    if (track_started)
+        painter.drawText(p, number);
+
 
     // draw the HUD speedometer & revcounter
     hud.draw(painter, width(), car->engine.rpm(), Gearbox::speed2kmh(car->speed), consumption_monitor.liters_used);

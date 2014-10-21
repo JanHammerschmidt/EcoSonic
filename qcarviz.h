@@ -362,6 +362,18 @@ protected slots:
     }
 
     void start() {
+        if (current_pos >= track_path.length()) {
+            current_pos = 0;
+            car->gearbox.clutch.disengage();
+            car->engine.reset();
+            car->gearbox.reset();
+            car->speed = 0;
+            track_started = false;
+            for (Track::Sign& s : track.signs) {
+                if (s.type == Track::Sign::TrafficLight)
+                    s.traffic_light_state = Track::Sign::Red;
+            }
+        }
         time_delta.start();
         tick_timer.start();
         started = true;
@@ -371,7 +383,7 @@ protected slots:
         tick_timer.stop();
         started = false;
         start_button->setText("Cont.");
-        save_svg();
+        //save_svg();
     }
 
     bool tick();
@@ -462,6 +474,8 @@ protected:
     ConsumptionMonitor consumption_monitor;
     HUD hud;
     QElapsedTimer flash_timer; // controls the display of a flash (white screen)
+    bool track_started = false;
+    qreal track_started_time = 0;
 };
 
 #include <QtConcurrent>
@@ -493,7 +507,6 @@ struct SpeedObserver {
         traffic_light->traffic_light_state = Track::Sign::Yellow;
         QThread::msleep(1000);
         traffic_light->traffic_light_state = Track::Sign::Green;
-        printf("green!");
     }
     void tick() {
         const qreal current_pos = carViz.current_pos;
@@ -520,8 +533,8 @@ struct SpeedObserver {
         if (next_sign && next_sign->type == Track::Sign::TrafficLight && next_sign->traffic_light_state == Track::Sign::Red
                 && (next_sign->at_length - current_pos) < next_sign->traffic_light_info.trigger_distance)
         {
-            printf("!!");
-            next_sign->traffic_light_state = Track::Sign::Yellow;
+            printf("trigger!\n");
+            next_sign->traffic_light_state = Track::Sign::Red_pending;
             QtConcurrent::run(trigger_traffic_light, next_sign);
         }
         const qreal kmh = Gearbox::speed2kmh(carViz.car->speed);
