@@ -13,7 +13,7 @@ public:
         : mass(mass)
         , drag_resistance_coefficient(drag_resistance_coefficient)
         , rolling_resistance_coefficient(rolling_resistance_coefficient)
-        , engine(7000, 270) // ?? 180 // 250
+        , engine(7000, 240) // ?? 180 // 250
     {
         this->drag_resistance_coefficient = (drag_resistance_coefficient == -1) ?
                 resistances::drag_resistance_coefficient(0.3, 2) // ??

@@ -233,7 +233,6 @@ struct HUD {
         consumption_display.draw(painter, QPointF(mid, 180), l_100km, kmh >= 5);
         trip_consumption.draw(painter, QPointF(mid, 25), liters_used * 10);
     }
-
 };
 
 struct TreeType {
@@ -368,6 +367,7 @@ protected slots:
             car->engine.reset();
             car->gearbox.reset();
             car->speed = 0;
+            consumption_monitor.reset();
             track_started = false;
             for (Track::Sign& s : track.signs) {
                 if (s.type == Track::Sign::TrafficLight)
@@ -486,7 +486,7 @@ protected:
 #define TOO_FAST_TOLERANCE 0.1
 #define MAX_TOO_FAST 2000 // ms
 #define MAX_TOO_SLOW 3000 // ms
-#define COOLDOWN_TIME 3000 // how long nothing happens after a honking (ms)
+#define COOLDOWN_TIME 3000 // how long "nothing" happens after a honking (ms)
 
 struct SpeedObserver {
     SpeedObserver(QCarViz& carViz, OSCSender& osc)

@@ -84,13 +84,33 @@ struct Track {
             return true;
         }
         bool is_speed_sign() const { return type >= Speed30 && type <= Speed130; }
-        qreal speed_limit() const { Q_ASSERT(is_speed_sign()); return 30 + (type - Speed30) * 10; };
+        qreal speed_limit() const { Q_ASSERT(is_speed_sign()); return 30 + (type - Speed30) * 10; }
 
         Type type = Stop;
         qreal at_length = 0;
         TrafficLightState traffic_light_state = Red;
         TrafficLightInfo traffic_light_info;
     };
+
+    void check_traffic_light_distance(Sign& s, qreal prev_pos = 0, const qreal min_dist = 100) {
+        qreal& dist = s.traffic_light_info.trigger_distance;
+        if (s.at_length - prev_pos - 50 < dist)
+            dist = s.at_length - prev_pos - 50;
+        if (dist < min_dist)
+            dist = min_dist;
+    }
+
+    void prepare_track() {
+        sort_signs();
+        Sign* prev_traffic_light = NULL;
+        for (Sign& s : signs) {
+            if (s.type == Sign::TrafficLight) {
+                check_traffic_light_distance(s, prev_traffic_light ? prev_traffic_light->at_length : 0);
+                prev_traffic_light = &s;
+            }
+        }
+    }
+
     void sort_signs() {
         std::sort(signs.begin(), signs.end());
     }
@@ -194,7 +214,7 @@ bool Track::load(const QString filename) {
         return false;
     QDataStream in(&file);
     in >> *this;
-    sort_signs();
+    prepare_track();
     return true;
 }
 

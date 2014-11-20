@@ -42,7 +42,7 @@ void QCarViz::init(Car* car, QPushButton* start_button, QSlider* throttle, QSlid
 void QCarViz::copy_from_track_editor(QTrackEditor* track_editor)
 {
     track = track_editor->track;
-    track.sort_signs();
+    track.prepare_track();
     update_track_path(height());
     speedObserver->tick();
     fill_trees();
