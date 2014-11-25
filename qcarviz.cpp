@@ -1,4 +1,5 @@
 #include "qcarviz.h"
+#include "speed_observer.h"
 
 QCarViz::QCarViz(QWidget *parent)
     : QWidget(parent)

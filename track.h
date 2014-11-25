@@ -7,6 +7,54 @@
 #include <QPainter>
 #include <QSvgRenderer>
 
+struct TreeType {
+    struct SpeedyImage {
+        QImage img;
+        qreal kmh;
+    };
+
+    TreeType() {}
+    TreeType(QString path, const qreal scale, const qreal y_offset)
+        : scale(scale)
+        , y_offset(y_offset)
+    {
+        img.load(path);
+    }
+    void draw_scaled(QPainter& painter, const QPointF pos, qreal kmh, qreal scale = 1) const {
+        scale *= this->scale;
+        QSizeF size(img.width() * scale, img.height() * scale);
+        const QImage* img = &this->img;
+        for (int i = 0; i < speedy_images.size(); i++) {
+            if (kmh >= speedy_images[i].kmh)
+                img = &speedy_images[i].img;
+        }
+        painter.drawImage(QRectF(pos.x() - 0.5 * size.width(), pos.y() - size.height() + y_offset * scale, size.width(), size.height()), *img);
+    }
+    void add_speedy_image(QString path, const qreal kmh) {
+        speedy_images.append(SpeedyImage{QImage(path), kmh});
+    }
+
+    QImage img;
+    QVector<SpeedyImage> speedy_images;
+    qreal scale;
+    qreal y_offset;
+};
+
+struct Tree {
+    Tree() {}
+    Tree(const int tree_type, const qreal pos, const qreal scale = 1, const qreal speed_scale = 1)
+        : type(tree_type), pos(pos), scale(scale), speed_scale(speed_scale) {}
+
+    qreal track_x(const qreal cur_x) {
+        return cur_x + (pos - cur_x) * speed_scale;
+    }
+
+    int type = 0; // which type of tree
+    qreal pos; // position on the track
+    qreal scale = 1; // size-multiplier
+    qreal speed_scale = 1; // speed-multiplier
+};
+
 struct Track {
     struct SignImage {
         bool load(const QString filename, const QString name, const qreal scale) {

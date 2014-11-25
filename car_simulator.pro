@@ -69,6 +69,10 @@ HEADERS  += mainwindow.h \
     track.h \
     lib/HID/HID.h \
     PedalInput.h \
-    OSCSender.h
+    OSCSender.h \
+    hud.h \
+    speed_observer.h \
+    misc.h \
+    KeyboardInput.h
 
 FORMS    += mainwindow.ui
