@@ -61,7 +61,7 @@ bool QCarViz::tick() {
     // keyboard input
     if (keyboard_input.update()) {
         car->throttle = keyboard_input.throttle();
-        car->breaking = keyboard_input.breaking();
+        car->braking = keyboard_input.breaking();
         changed = true;
     }
     const int gear_change = keyboard_input.gear_change();
@@ -87,7 +87,7 @@ bool QCarViz::tick() {
     // pedal input
     if (pedal_input.valid() && pedal_input.update()) {
         car->throttle = pedal_input.gas();
-        car->breaking = pedal_input.brake();
+        car->braking = pedal_input.brake();
         changed = true;
     }
     if (!track_started && car->throttle > 0) {
@@ -118,11 +118,11 @@ bool QCarViz::tick() {
     if (elapsed - last_elapsed > 0.05) {
         if (changed) {
             throttle_slider->setValue(car->throttle * 100);
-            breaking_slider->setValue(car->breaking * 100);
+            breaking_slider->setValue(car->braking * 100);
             changed = false;
         } else {
             car->throttle = throttle_slider->value() / 100.;
-            car->breaking = breaking_slider->value() / 100.;
+            car->braking = breaking_slider->value() / 100.;
         }
         speedObserver->tick();
         emit slow_tick(elapsed - last_elapsed, elapsed, consumption_monitor);

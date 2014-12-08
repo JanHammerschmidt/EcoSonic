@@ -31,7 +31,7 @@ public:
         return pow(e, 0.7) * 0.1 + 1;
     }
 
-protected:
+//protected:
     //QPointF center;
     QPointF ellipse; // a/b parameter
     QTransform transform; // takes care of rotation & translation of the ellipse

@@ -40,7 +40,8 @@ SOURCES += main.cpp\
     lib/oscpack_1_1_0/ip/posix/UdpSocket.cpp \
     qtrackeditor.cpp \
     lib/HID/HID.cpp \
-    qcarviz.cpp
+    qcarviz.cpp \
+    car.cpp
 
 HEADERS  += mainwindow.h \
     engine.h \
@@ -73,6 +74,7 @@ HEADERS  += mainwindow.h \
     hud.h \
     speed_observer.h \
     misc.h \
-    KeyboardInput.h
+    KeyboardInput.h \
+    logging.h
 
 FORMS    += mainwindow.ui

@@ -10,17 +10,17 @@ namespace resistances {
         return drag_coefficient * stirnflaeche * air_density;
     }
     // returns [N], speed in [m/s]
-    static qreal drag(qreal drag_resistance_coefficient, qreal speed) {
+    static inline qreal drag(qreal drag_resistance_coefficient, qreal speed) {
         return drag_resistance_coefficient * speed*speed;
     }
 
     // alpha: steigung [rad], mass [kg]
-    static qreal rolling(qreal rolling_resistance_coefficient, qreal alpha, qreal mass) {
+    static inline qreal rolling(qreal rolling_resistance_coefficient, qreal alpha, qreal mass) {
         return rolling_resistance_coefficient * cos(alpha) * mass * GRAVITY;
     }
 
     // mass [kg], alpha: steigung [rad] (kann negativ sein!)
-    static qreal uphill(qreal mass, qreal alpha) {
+    static inline qreal uphill(qreal mass, qreal alpha) {
         return mass * GRAVITY * sin(alpha);
     }
 }

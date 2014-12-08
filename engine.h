@@ -125,4 +125,12 @@ public:
     qreal inertia = 0.13; // [kg m^2]
 };
 
+inline QDataStream &operator<<(QDataStream &out, const Engine &engine)
+{
+    out << engine.consumption_map.ellipse << engine.consumption_map.transform << engine.base_consumption << engine.torque_map.torque_ramps << engine.max_rpm <<
+           engine.max_torque << engine.engine_braking_coefficient << engine.engine_braking_offset << engine.min_throttle << engine.inertia;
+    return out;
+}
+
+
 #endif // ENGINE_H

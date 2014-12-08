@@ -23,7 +23,7 @@ struct Clutch
     void update(const double dt) { t += dt; }
 
     double a_w; // acceleration (a) of the difference of the rotation speeds (w)
-    const double t_shift = 0.8; // shift time (seconds)
+    /*const*/ double t_shift = 0.8; // shift time (seconds)
     double t = t_shift; // accumulated time since beginning of engagement
     double w_t0; // delta of rotation speeds at t0
     bool engage = false; // is engaged or should engage
@@ -176,6 +176,19 @@ public:
     //qreal clutch_max_rpm_diff = 4000;
 };
 
+inline QDataStream &operator<<(QDataStream &out, const Gearbox &g)
+{
+    out << g.gears << g.mass_factors << g.end_transmission << g.rolling_circumference << g.wheel_radius << g.clutch.t_shift;
+    return out;
+}
+
+inline QDataStream &operator<<(QDataStream &in, Gearbox &g) {
+    in >> g.gears >> g.mass_factors >> g.end_transmission >> g.rolling_circumference >> g.wheel_radius >> g.clutch.t_shift;
+    g.clutch.t = g.clutch.t_shift;
+    return in;
+}
+
+
 inline void Clutch::clutch_in(const Engine& engine, const Gearbox* const gearbox, const double speed) {
     if (!engage) {
         t = 0;
@@ -197,6 +210,8 @@ inline double Clutch::counter_torque(const Engine& engine, const Gearbox* const 
     return engine.torque_out - engine.inertia * a_w_e;
     //engine.angular_velocity += (engine.torque_out - engine.torque_counter) / engine.inertia * dt;
 }
+
+
 
 
 #endif // GEARBOX_H

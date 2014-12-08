@@ -85,4 +85,12 @@ struct TorqueMap {
 
 };
 
+inline QDataStream &operator<<(QDataStream &out, const TorqueMap::TorqueRamp &tr)
+{
+    out << tr.rpm2torque << tr.throttle;
+    return out;
+}
+
+
+
 #endif // TORQUE_MAP_H
