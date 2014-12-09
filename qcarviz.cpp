@@ -147,10 +147,10 @@ void QCarViz::draw(QPainter& painter)
     QPointF p = {300,300};
     if (track_started)
         painter.drawText(p, number);
-
+    // /////
 
     // draw the HUD speedometer & revcounter
-    hud.draw(painter, width(), car->engine.rpm(), Gearbox::speed2kmh(car->speed), consumption_monitor.liters_used);
+    hud.draw(painter, width(), car->engine.rpm(), Gearbox::speed2kmh(car->speed), consumption_monitor.liters_used, track.max_time, time_delta.get_elapsed() - track_started_time, track_started);
 
     // draw the road
     painter.setPen(QPen(Qt::black, 1));

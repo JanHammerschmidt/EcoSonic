@@ -167,6 +167,8 @@ struct Track {
     int num_points = 0;
     int width = 1000;
     QVector<Sign> signs;
+    int max_time = 0; // how much time the user has to finish the track
+
     struct Images {
         QVector<SignImage> sign_images;
         QSvgRenderer pole_image;

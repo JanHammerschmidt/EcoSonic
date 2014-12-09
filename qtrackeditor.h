@@ -34,7 +34,7 @@ public:
         save_track();
     }
 
-    void init(QSpinBox* width_control, QSpinBox* num_control_points, QSpinBox* show_control_points, QPushButton* add_sign, QPushButton* reset) {
+    void init(QSpinBox* width_control, QSpinBox* num_control_points, QSpinBox* show_control_points, QPushButton* add_sign, QPushButton* reset, QSpinBox* max_time) {
         QObject::connect(width_control, SIGNAL(valueChanged(int)),
                          this, SLOT(change_width(int)));
         QObject::connect(num_control_points, SIGNAL(valueChanged(int)),
@@ -45,10 +45,13 @@ public:
                          this, SLOT(add_sign()));
         QObject::connect(reset, SIGNAL(clicked()),
                          this, SLOT(reset()));
+        QObject::connect(max_time, SIGNAL(valueChanged(int)),
+                         this, SLOT(change_max_time(int)));
         num_control_points->setValue(track.num_points);
         width_control->setValue(track.width / 10);
         this->num_control_points = num_control_points;
         this->show_control_points = show_control_points;
+        max_time->setValue(track.max_time);
     }
 
     bool save_track() {
@@ -110,6 +113,9 @@ public slots:
         }
         track.num_points = num_points;
         update();
+    }
+    void change_max_time(int time) {
+        track.max_time = time;
     }
 };
 
