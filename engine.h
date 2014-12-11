@@ -18,7 +18,7 @@ struct ConsumptionMonitor
         ml_counter += dt * liters_s;
         if (ml_counter >= ml_per_tick * 0.001) {
             ml_counter -= ml_per_tick * 0.001;
-            osc->send_float("/msg_consumption_tick", liters_per_100km_cont);
+            osc->send_float("/consumption_tick", liters_per_100km_cont);
         }
 
     }

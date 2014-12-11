@@ -5,3 +5,6 @@ debug/*
 *.sdf
 *.suo
 .DS_Store
+old/*
+media/*
+*.pro.user*

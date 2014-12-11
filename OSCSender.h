@@ -19,6 +19,7 @@ public:
             << osc::EndBundle;
         transmitSocket.Send(p.Data(), p.Size());
     }
+    void call(const char* msg) { send_float(msg, 0); }
 
 protected:
     UdpTransmitSocket transmitSocket;

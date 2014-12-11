@@ -169,14 +169,17 @@ struct HUD {
     RevCounter rev_counter;
     TimeDisplay time_display;
     qreal l_100km = 0;
+    bool draw_consumption = true;
     void draw(QPainter& painter, const qreal width, const qreal rpm, const qreal kmh, const qreal liters_used, int max_time, qreal time_elapsed, bool track_started) {
         const qreal gap = 15;
         const qreal mid = width / 2.;
         rev_counter.draw(painter, QPointF(mid - rev_counter.radius - gap, rev_counter.radius + gap), 0.01 * rpm);
         speedometer.draw(painter, QPointF(mid + speedometer.radius + gap, speedometer.radius + gap), kmh);
         consumption_display.draw(painter, QPointF(mid, 180), l_100km, kmh >= 5);
-        trip_consumption.draw(painter, QPointF(mid, 25), liters_used * 10);
-        time_display.draw(painter, {10,30}, max_time, time_elapsed, track_started);
+        if (draw_consumption) {
+            trip_consumption.draw(painter, QPointF(mid, 25), liters_used * 10);
+            time_display.draw(painter, {10,30}, max_time, time_elapsed, track_started);
+        }
     }
 };
 

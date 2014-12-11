@@ -19,12 +19,20 @@ struct KeyboardInput : public QObject
         clutch = false;
         return ret;
     }
+    bool show_control_window() {
+        const bool ret = control_window;
+        control_window = false;
+        return ret;
+    }
+
+    int get_sound_modus() { return sound_modus; }
 
     bool update() {
         const bool ret = changed;
         changed = false;
         return ret;
     }
+
 
 protected:
     virtual bool eventFilter(QObject *obj, QEvent *e) {
@@ -42,6 +50,10 @@ protected:
                 case Qt::Key_W: gears += 1; break;
                 case Qt::Key_S: gears -= 1; break;
                 case Qt::Key_Space: clutch = true; break;
+                case Qt::Key_1: sound_modus = 1; break;
+                case Qt::Key_2: sound_modus = 2; break;
+                case Qt::Key_0: sound_modus = 0; break;
+                case Qt::Key_T: control_window = true; break;
                 default: keys_pressed.insert(key);
             }
         }
@@ -54,6 +66,8 @@ protected:
     bool changed = false;
     int gears = 0;
     bool clutch = false;
+    int sound_modus = 0;
+    bool control_window = false;
 };
 
 #endif // KEYBOARDINPUT_H

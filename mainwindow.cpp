@@ -97,6 +97,8 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
+    ui->car_viz->update_sound_modus(0);
+    osc.call("/stopEngine");
     delete ui;
 }
 

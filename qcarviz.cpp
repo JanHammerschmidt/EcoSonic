@@ -36,6 +36,7 @@ void QCarViz::init(Car* car, QPushButton* start_button, QSlider* throttle, QSlid
                      this, SLOT(start_stop()));
     keyboard_input.init(main_window);
     consumption_monitor.osc = osc;
+    this->osc = osc;
     if (start)
         QTimer::singleShot(500, this, SLOT(start()));
 }
@@ -48,8 +49,6 @@ void QCarViz::copy_from_track_editor(QTrackEditor* track_editor)
     speedObserver->tick();
     fill_trees();
 }
-
-
 
 bool QCarViz::tick() {
     Q_ASSERT(started);
@@ -72,17 +71,24 @@ bool QCarViz::tick() {
             car->gearbox.gear_down();
         gear_spinbox->setValue(car->gearbox.gear+1);
     }
-    const bool toggle_clutch = keyboard_input.toggle_clutch();
-    if (toggle_clutch) {
-        Clutch& clutch = car->gearbox.clutch;
-        if (clutch.engage)
-            clutch.disengage();
-        else
-            clutch.clutch_in(car->engine, &car->gearbox, car->speed);
-    }
+    // manual clutch control
+//    const bool toggle_clutch = keyboard_input.toggle_clutch();
+//    if (toggle_clutch) {
+//        Clutch& clutch = car->gearbox.clutch;
+//        if (clutch.engage)
+//            clutch.disengage();
+//        else
+//            clutch.clutch_in(car->engine, &car->gearbox, car->speed);
+//    }
+    // automatic clutch control
     if (track_started)
         car->gearbox.auto_clutch_control(car);
 
+    // sound modus (supercollider)
+    update_sound_modus(keyboard_input.get_sound_modus());
+    // control window
+    if (keyboard_input.show_control_window() && sound_modus == 2)
+        osc->call("/pitch_show_controls");
 
     // pedal input
     if (pedal_input.valid() && pedal_input.update()) {

@@ -44,6 +44,21 @@ public:
     void init(Car* car, QPushButton* start_button, QSlider* throttle, QSlider* breaking, QSpinBox* gear, QMainWindow* main_window, OSCSender* osc, bool start = true);
 
     void copy_from_track_editor(QTrackEditor* track_editor);
+
+    void update_sound_modus(int const sound_modus) {
+        if (sound_modus != this->sound_modus) {
+            if (this->sound_modus == 1)
+                osc->call("/slurp_stop");
+            else if (this->sound_modus == 2)
+                osc->call("/pitch_stop");
+            if (sound_modus == 1)
+                osc->call("/slurp_start");
+            else if (sound_modus == 2)
+                osc->call("/pitch_start");
+            this->sound_modus = sound_modus;
+        }
+    }
+
 signals:
     void slow_tick(qreal dt, qreal elapsed, ConsumptionMonitor& consumption_monitor);
 
@@ -55,7 +70,7 @@ protected slots:
 
     void start() {
         if (current_pos >= track_path.length()) {
-            current_pos = 0;
+            current_pos = initial_pos;
             car->gearbox.clutch.disengage();
             car->engine.reset();
             car->gearbox.reset();
@@ -70,11 +85,14 @@ protected slots:
         time_delta.start();
         tick_timer.start();
         started = true;
+        osc->send_float("/startEngine", 0);
         start_button->setText("Pause");
     }
     void stop() {
         tick_timer.stop();
         started = false;
+        osc->call("/stopEngine");
+        update_sound_modus(0);
         start_button->setText("Cont.");
         //save_svg();
     }
@@ -169,6 +187,8 @@ protected:
     QElapsedTimer flash_timer; // controls the display of a flash (white screen)
     bool track_started = false;
     qreal track_started_time = 0;
+    OSCSender* osc = NULL;
+    int sound_modus = 0;
 };
 
 
