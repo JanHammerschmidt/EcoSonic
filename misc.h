@@ -1,6 +1,29 @@
 #ifndef MISC_H
 #define MISC_H
 
+#include <QElapsedTimer>
+#include <QDir>
+
+template<class T>
+bool saveObj(const QString filename, const T& obj) {
+    QFile file(filename);
+    QDir().mkpath(QFileInfo(file).absolutePath());
+    if (!file.open(QIODevice::WriteOnly))
+        return false;
+    QDataStream out(&file);
+    out << obj;
+    return true;
+}
+template<class T>
+bool loadObj(const QString filename, T& obj) {
+    QFile file(filename);
+    if (!file.open(QIODevice::ReadOnly))
+        return false;
+    QDataStream in(&file);
+    in >> obj;
+    return true;
+}
+
 struct FPSTimer {
     FPSTimer(std::string name = "FPS: ", qint64 interval = 2000)
         : name(name)

@@ -182,7 +182,7 @@ inline QDataStream &operator<<(QDataStream &out, const Gearbox &g)
     return out;
 }
 
-inline QDataStream &operator<<(QDataStream &in, Gearbox &g) {
+inline QDataStream &operator>>(QDataStream &in, Gearbox &g) {
     in >> g.gears >> g.mass_factors >> g.end_transmission >> g.rolling_circumference >> g.wheel_radius >> g.clutch.t_shift;
     g.clutch.t = g.clutch.t_shift;
     return in;

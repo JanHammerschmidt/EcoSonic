@@ -189,6 +189,7 @@ protected:
     qreal track_started_time = 0;
     OSCSender* osc = NULL;
     int sound_modus = 0;
+    QDateTime program_start_time;
 };
 
 

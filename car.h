@@ -22,6 +22,8 @@ public:
                 : drag_resistance_coefficient;
     }
 
+    void save_log(QDateTime& program_start_time);
+
     // throttle: (0..1), alpha: up/downhill [rad]
     // returns acceleration [m/s^2]
     qreal tick(qreal const dt, qreal alpha);
@@ -50,6 +52,10 @@ inline QDataStream &operator<<(QDataStream &out, const Car &car)
     return out;
 }
 
+inline QDataStream &operator>>(QDataStream &in, Car &car) {
+    in >> car.mass >> car.max_breaking_force >> car.drag_resistance_coefficient >> car.rolling_resistance_coefficient >> car.engine >> car.gearbox;
+    return in;
+}
 
 
 

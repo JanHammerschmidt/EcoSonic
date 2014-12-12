@@ -1,5 +1,6 @@
 #include "qcarviz.h"
 #include "speed_observer.h"
+#include "logging.h"
 
 QCarViz::QCarViz(QWidget *parent)
     : QWidget(parent)
@@ -37,6 +38,7 @@ void QCarViz::init(Car* car, QPushButton* start_button, QSlider* throttle, QSlid
     keyboard_input.init(main_window);
     consumption_monitor.osc = osc;
     this->osc = osc;
+    program_start_time = QDateTime::currentDateTime();
     if (start)
         QTimer::singleShot(500, this, SLOT(start()));
 }
@@ -99,17 +101,23 @@ bool QCarViz::tick() {
     if (!track_started && car->throttle > 0) {
         track_started = true;
         track_started_time = time_delta.get_elapsed();
+        car->log = new Log(car, &track);
     }
 
 
     const qreal alpha = !track_path.length() ? 0 : atan(-track_path.slopeAtPercent(track_path.percentAtLength(current_pos))); // slope [rad]
     Q_ASSERT(!isnan(alpha));
     car->tick(dt, alpha);
+    if (!track_started)
+        car->speed = 0;
     current_pos += car->speed * dt * 3;
     if (current_pos >= track_path.length()) {
         //current_pos = 0;
         //current_pos = track_path.length();
         stop();
+        car->log->elapsed_time = time_delta.get_elapsed() - track_started_time;
+        car->log->liters_used = consumption_monitor.liters_used;
+        car->save_log(program_start_time);
     }
     if (track_started)
         consumption_monitor.tick(car->engine.get_consumption_L_s(), dt, car->speed);

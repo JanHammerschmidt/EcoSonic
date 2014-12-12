@@ -6,6 +6,7 @@
 #include <QImage>
 #include <QPainter>
 #include <QSvgRenderer>
+#include "misc.h"
 
 struct TreeType {
     struct SpeedyImage {
@@ -193,8 +194,8 @@ struct Track {
     };
     static Images images;
 
-    inline bool save(const QString filename = QDir::homePath()+"/track.bin");
-    inline bool load(const QString filename = QDir::homePath()+"/track.bin");
+    inline bool save(const QString filename = QDir::homePath()+"/EcoSonic/track.bin") const { return saveObj(filename, *this); }
+    inline bool load(const QString filename = QDir::homePath()+"/EcoSonic/track.bin") { return loadObj(filename, *this); }
     void get_path(QPainterPath& path, const qreal height) {
         if (!points.size())
             return;
@@ -228,12 +229,13 @@ struct Track {
 };
 
 inline QDataStream &operator<<(QDataStream &out, const Track &track) {
-    out << track.points << track.num_points << track.width << track.signs;
+    out << track.points << track.num_points << track.width << track.signs << track.max_time;
     return out;
 }
 
 inline QDataStream &operator>>(QDataStream &in, Track &track) {
-    in >> track.points >> track.num_points >> track.width >> track.signs;
+    in >> track.points >> track.num_points >> track.width >> track.signs >> track.max_time;
+    track.prepare_track();
     return in;
 }
 
@@ -247,25 +249,6 @@ inline QDataStream &operator>>(QDataStream &in, Track::Sign &sign) {
     in >> type >> sign.at_length;
     sign.type = (Track::Sign::Type) type;
     return in;
-}
-
-
-bool Track::save(const QString filename) {
-    QFile file(filename);
-    if (!file.open(QIODevice::WriteOnly))
-        return false;
-    QDataStream out(&file);
-    out << *this;
-    return true;
-}
-bool Track::load(const QString filename) {
-    QFile file(filename);
-    if (!file.open(QIODevice::ReadOnly))
-        return false;
-    QDataStream in(&file);
-    in >> *this;
-    prepare_track();
-    return true;
 }
 
 #endif // TRACK_H

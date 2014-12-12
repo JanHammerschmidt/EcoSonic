@@ -1,5 +1,13 @@
+#include <QDateTime>
 #include "car.h"
 #include "logging.h"
+#include <assert.h>
+
+void Car::save_log(QDateTime& program_start_time) {
+    assert(log != nullptr);
+    log->save(QDir::homePath()+"/EcoSonic/"+program_start_time.toString("yy-MM-dd_hh-mm")+"/"+QDateTime::currentDateTime().toString("mm-ss")+".bin");
+    delete log;
+}
 
 qreal Car::tick(qreal const dt, qreal alpha)
 {

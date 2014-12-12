@@ -112,10 +112,10 @@ public:
     ConsumptionMap consumption_map;
     qreal base_consumption = 100; // 206;
     TorqueMap torque_map;
-    qreal const max_rpm; // [u/min]
-    qreal const max_torque; // [N*m]
-    qreal const engine_braking_coefficient = 0.9;
-    qreal const engine_braking_offset = 0; // [N*m]
+    qreal max_rpm; // [u/min] // const
+    qreal max_torque; // [N*m] // const
+    qreal engine_braking_coefficient = 0.9; // const
+    qreal engine_braking_offset = 0; // [N*m] // const
     qreal angular_velocity = 0; // [rad/s]
     //qreal rpm; // current rpm [u/min]
     qreal torque; // [N*m]
@@ -130,6 +130,12 @@ inline QDataStream &operator<<(QDataStream &out, const Engine &engine)
     out << engine.consumption_map.ellipse << engine.consumption_map.transform << engine.base_consumption << engine.torque_map.torque_ramps << engine.max_rpm <<
            engine.max_torque << engine.engine_braking_coefficient << engine.engine_braking_offset << engine.min_throttle << engine.inertia;
     return out;
+}
+
+inline QDataStream &operator>>(QDataStream &in, Engine &engine) {
+    in >> engine.consumption_map.ellipse >> engine.consumption_map.transform >> engine.base_consumption >> engine.torque_map.torque_ramps >> engine.max_rpm >>
+           engine.max_torque >> engine.engine_braking_coefficient >> engine.engine_braking_offset >> engine.min_throttle >> engine.inertia;
+    return in;
 }
 
 

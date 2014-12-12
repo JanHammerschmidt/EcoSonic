@@ -16,6 +16,7 @@ struct TorqueMap {
     }
     // maps (relative) rpm to (relative) torque for a given throttle
     struct TorqueRamp {
+        TorqueRamp() = default;
         TorqueRamp(qreal throttle) : throttle(throttle) { }
         TorqueRamp(qreal throttle, qreal values[][2], ulong const n) : throttle(throttle) {
             for (ulong i = 0; i < n; i++) {
@@ -91,6 +92,10 @@ inline QDataStream &operator<<(QDataStream &out, const TorqueMap::TorqueRamp &tr
     return out;
 }
 
-
+inline QDataStream &operator>>(QDataStream &in, TorqueMap::TorqueRamp &tr)
+{
+    in >> tr.rpm2torque >> tr.throttle;
+    return in;
+}
 
 #endif // TORQUE_MAP_H
