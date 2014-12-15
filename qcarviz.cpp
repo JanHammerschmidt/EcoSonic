@@ -83,43 +83,19 @@ void QCarViz::prepare_track() {
     fill_trees();
 }
 
-static qreal my_time = 0;
-struct my_log_item {
-    qreal dt;
-    qreal speed;
-    bool clutch;
-    qreal torque;
-    qreal throttle;
-    qreal alpha;
-    qreal rpm;
-};
-QList<my_log_item> my_log_items;
-void write_log_items() {
-    QFile file(QDir::homePath()+"/EcoSonic/log.csv");
-    file.open(QIODevice::WriteOnly);
-    QTextStream out(&file);
-    out << "dt; speed; clutch; torque; throttle; alpha; rpm\n";
-    for (auto i : my_log_items)
-        out << i.dt << ";" << i.speed << ";" << i.clutch << ";" << i.torque << ";" << i.throttle << ";" << i.alpha << ";" << i.rpm << "\n";
-}
-
 bool QCarViz::tick() {
     Q_ASSERT(started);
     qreal dt;
     static bool changed = false;
     if (replay == true) {
         if (replay_index >= car->log->items.size()) {
-            printf("elapsed_time: %.3f\n", time_delta.get_elapsed() - track_started_time);
-            printf("deciliters_used: %.4f\n", consumption_monitor.liters_used * 10);
-            printf("time: %.3f\n", my_time);
-            write_log_items();
+            //printf("elapsed_time: %.3f\n", time_delta.get_elapsed() - track_started_time);
+            //printf("deciliters_used: %.4f\n", consumption_monitor.liters_used * 10);
             stop();
             return false;
-        } else if (!replay_index)
-            printf("initial rpm: %.3f\n", car->engine.rpm());
+        }
         LogItem& log_item = car->log->items[replay_index];
         dt = log_item.dt;
-        my_time += dt;
         car->braking = log_item.braking;
         car->gearbox.gear = log_item.gear;
         car->throttle = log_item.throttle;
@@ -178,18 +154,13 @@ bool QCarViz::tick() {
             track_started_time = time_delta.get_elapsed();
             car->log.reset(new Log(car, &track));
             car->log->initial_angular_velocity = car->engine.angular_velocity;
-            printf("initial deciliters_used: %.4f\n", consumption_monitor.liters_used * 10);
-            printf("initial rpm: %.3f\n", car->engine.rpm());
         }
-        if (track_started)
-            my_time += dt;
     }
 
     const qreal alpha = !track_path.length() ? 0 : atan(-track_path.slopeAtPercent(track_path.percentAtLength(current_pos))); // slope [rad]
     Q_ASSERT(!isnan(alpha));
     car->tick(dt, alpha, replay);
     if (track_started) {
-        my_log_items.append(my_log_item{dt, car->speed, car->gearbox.clutch.engage, car->engine.torque, car->throttle, alpha, car->engine.rpm()});
         consumption_monitor.tick(car->engine.get_consumption_L_s(), dt, car->speed);
     } else {
         Q_ASSERT(!replay);
@@ -197,15 +168,11 @@ bool QCarViz::tick() {
     }
     current_pos += car->speed * dt * 3;
     if (current_pos >= track_path.length() && !replay) {
-        //current_pos = 0;
-        //current_pos = track_path.length();
         stop();
         car->log->elapsed_time = time_delta.get_elapsed() - track_started_time;
         car->log->liters_used = consumption_monitor.liters_used;
         car->log->sound_modus = sound_modus;
         car->save_log(program_start_time);
-        write_log_items();
-        printf("time: %.3f\n", my_time);
     }
     double l_100km;
     if (consumption_monitor.get_l_100km(l_100km, car->speed)) {
