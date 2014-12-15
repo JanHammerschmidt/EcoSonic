@@ -26,7 +26,7 @@ public:
 
     // throttle: (0..1), alpha: up/downhill [rad]
     // returns acceleration [m/s^2]
-    qreal tick(qreal const dt, qreal alpha);
+    qreal tick(qreal const dt, qreal alpha, bool replay);
 
     qreal mass; // [kg]
     qreal speed = 0; // [m/s]
@@ -43,7 +43,7 @@ public:
     Engine engine;
     Gearbox gearbox;
 
-    Log* log = NULL;
+    std::shared_ptr<Log> log;
 };
 
 inline QDataStream &operator<<(QDataStream &out, const Car &car)

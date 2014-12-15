@@ -154,3 +154,14 @@ void MainWindow::on_tabWidget_currentChanged(int index)
     }
     last_tab = index;
 }
+
+void MainWindow::on_actionOpen_Log_triggered()
+{
+    ui->car_viz->stop(true);
+    QString filename = QFileDialog::getOpenFileName(this, "Open Log", QDir::homePath()+"/EcoSonic", "Log Files (*.log)");
+    if (filename != "" && QFile(filename).exists()) {
+        ui->car_viz->load_log(filename);
+    } else {
+        ui->car_viz->start();
+    }
+}

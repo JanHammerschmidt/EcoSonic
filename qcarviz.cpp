@@ -46,34 +46,105 @@ void QCarViz::init(Car* car, QPushButton* start_button, QSlider* throttle, QSlid
 void QCarViz::copy_from_track_editor(QTrackEditor* track_editor)
 {
     track = track_editor->track;
+    prepare_track();
+}
+
+bool QCarViz::load_log(const QString filename) {
+    std::shared_ptr<Log>& log = car->log;
+    log.reset(new Log(car, &track));
+    const bool ret = loadObj(filename, *log);
+    if (ret) {
+        if (!log->valid) {
+            printf("wrong version!\n");
+            return false;
+        }
+        printf("log: elapsed_time: %.3f\n", log->elapsed_time);
+        printf("log: deciliters_used: %.4f\n", log->liters_used * 10);
+//        printf("log: items: %i\n", log->items.size());
+        this->sound_modus = log->sound_modus;
+        prepare_track();
+        replay = true;
+        replay_index = 0;
+        track_started = true;
+        track_started_time = time_delta.get_elapsed();
+        car->engine.angular_velocity = log->initial_angular_velocity;
+        printf("log: initial rpm: %.3f\n", car->engine.rpm());
+        current_pos = track_path.length();
+        start();
+        update_sound_modus(sound_modus);
+    }
+    return ret;
+}
+
+void QCarViz::prepare_track() {
     track.prepare_track();
     update_track_path(height());
     speedObserver->tick();
     fill_trees();
 }
 
+static qreal my_time = 0;
+struct my_log_item {
+    qreal dt;
+    qreal speed;
+    bool clutch;
+    qreal torque;
+    qreal throttle;
+    qreal alpha;
+    qreal rpm;
+};
+QList<my_log_item> my_log_items;
+void write_log_items() {
+    QFile file(QDir::homePath()+"/EcoSonic/log.csv");
+    file.open(QIODevice::WriteOnly);
+    QTextStream out(&file);
+    out << "dt; speed; clutch; torque; throttle; alpha; rpm\n";
+    for (auto i : my_log_items)
+        out << i.dt << ";" << i.speed << ";" << i.clutch << ";" << i.torque << ";" << i.throttle << ";" << i.alpha << ";" << i.rpm << "\n";
+}
+
 bool QCarViz::tick() {
     Q_ASSERT(started);
     qreal dt;
-    if (!time_delta.get_time_delta(dt))
-        return false;
-
     static bool changed = false;
-    // keyboard input
-    if (keyboard_input.update()) {
-        car->throttle = keyboard_input.throttle();
-        car->braking = keyboard_input.breaking();
+    if (replay == true) {
+        if (replay_index >= car->log->items.size()) {
+            printf("elapsed_time: %.3f\n", time_delta.get_elapsed() - track_started_time);
+            printf("deciliters_used: %.4f\n", consumption_monitor.liters_used * 10);
+            printf("time: %.3f\n", my_time);
+            write_log_items();
+            stop();
+            return false;
+        } else if (!replay_index)
+            printf("initial rpm: %.3f\n", car->engine.rpm());
+        LogItem& log_item = car->log->items[replay_index];
+        dt = log_item.dt;
+        my_time += dt;
+        car->braking = log_item.braking;
+        car->gearbox.gear = log_item.gear;
+        car->throttle = log_item.throttle;
         changed = true;
-    }
-    const int gear_change = keyboard_input.gear_change();
-    if (gear_change) {
-        if (gear_change > 0)
-            car->gearbox.gear_up();
-        else if (gear_change < 0)
-            car->gearbox.gear_down();
-        gear_spinbox->setValue(car->gearbox.gear+1);
-    }
-    // manual clutch control
+        replay_index++;
+        time_delta.add_dt(dt);
+    } else {
+        if (!time_delta.get_time_delta(dt))
+            return false;
+
+        // keyboard input
+        if (keyboard_input.update()) {
+            car->throttle = keyboard_input.throttle();
+            car->braking = keyboard_input.breaking();
+            changed = true;
+        }
+        const int gear_change = keyboard_input.gear_change();
+        if (gear_change) {
+            if (gear_change > 0)
+                car->gearbox.gear_up();
+            else if (gear_change < 0)
+                car->gearbox.gear_down();
+            gear_spinbox->setValue(car->gearbox.gear+1);
+        }
+//    // manual clutch control
 //    const bool toggle_clutch = keyboard_input.toggle_clutch();
 //    if (toggle_clutch) {
 //        Clutch& clutch = car->gearbox.clutch;
@@ -82,45 +153,60 @@ bool QCarViz::tick() {
 //        else
 //            clutch.clutch_in(car->engine, &car->gearbox, car->speed);
 //    }
+    }
     // automatic clutch control
     if (track_started)
         car->gearbox.auto_clutch_control(car);
 
-    // sound modus (supercollider)
-    update_sound_modus(keyboard_input.get_sound_modus());
+    if (!replay) {
+        // sound modus (supercollider)
+        update_sound_modus(keyboard_input.get_sound_modus());
+    }
     // control window
     if (keyboard_input.show_control_window() && sound_modus == 2)
         osc->call("/pitch_show_controls");
 
-    // pedal input
-    if (pedal_input.valid() && pedal_input.update()) {
-        car->throttle = pedal_input.gas();
-        car->braking = pedal_input.brake();
-        changed = true;
+    if (!replay) {
+        // pedal input
+        if (pedal_input.valid() && pedal_input.update()) {
+            car->throttle = pedal_input.gas();
+            car->braking = pedal_input.brake();
+            changed = true;
+        }
+        if (!track_started && car->throttle > 0) {
+            track_started = true;
+            track_started_time = time_delta.get_elapsed();
+            car->log.reset(new Log(car, &track));
+            car->log->initial_angular_velocity = car->engine.angular_velocity;
+            printf("initial deciliters_used: %.4f\n", consumption_monitor.liters_used * 10);
+            printf("initial rpm: %.3f\n", car->engine.rpm());
+        }
+        if (track_started)
+            my_time += dt;
     }
-    if (!track_started && car->throttle > 0) {
-        track_started = true;
-        track_started_time = time_delta.get_elapsed();
-        car->log = new Log(car, &track);
-    }
-
 
     const qreal alpha = !track_path.length() ? 0 : atan(-track_path.slopeAtPercent(track_path.percentAtLength(current_pos))); // slope [rad]
     Q_ASSERT(!isnan(alpha));
-    car->tick(dt, alpha);
-    if (!track_started)
+    car->tick(dt, alpha, replay);
+    if (track_started) {
+        my_log_items.append(my_log_item{dt, car->speed, car->gearbox.clutch.engage, car->engine.torque, car->throttle, alpha, car->engine.rpm()});
+        consumption_monitor.tick(car->engine.get_consumption_L_s(), dt, car->speed);
+    } else {
+        Q_ASSERT(!replay);
         car->speed = 0;
+    }
     current_pos += car->speed * dt * 3;
-    if (current_pos >= track_path.length()) {
+    if (current_pos >= track_path.length() && !replay) {
         //current_pos = 0;
         //current_pos = track_path.length();
         stop();
         car->log->elapsed_time = time_delta.get_elapsed() - track_started_time;
         car->log->liters_used = consumption_monitor.liters_used;
+        car->log->sound_modus = sound_modus;
         car->save_log(program_start_time);
+        write_log_items();
+        printf("time: %.3f\n", my_time);
     }
-    if (track_started)
-        consumption_monitor.tick(car->engine.get_consumption_L_s(), dt, car->speed);
     double l_100km;
     if (consumption_monitor.get_l_100km(l_100km, car->speed)) {
         hud.l_100km = l_100km;

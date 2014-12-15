@@ -59,24 +59,31 @@ public:
         }
     }
 
-signals:
-    void slow_tick(qreal dt, qreal elapsed, ConsumptionMonitor& consumption_monitor);
+    bool load_log(const QString filename);
 
-protected slots:
-
-    void start_stop() {
-        started ? stop() : start();
+public slots:
+    void stop(bool temporary_stop = false) {
+        tick_timer.stop();
+        started = false;
+        if (!temporary_stop) {
+            osc->call("/stopEngine");
+            update_sound_modus(0);
+        }
+        start_button->setText("Cont.");
+        //save_svg();
     }
 
     void start() {
         if (current_pos >= track_path.length()) {
             current_pos = initial_pos;
             car->gearbox.clutch.disengage();
-            car->engine.reset();
+            if (!replay)
+                car->engine.reset();
             car->gearbox.reset();
             car->speed = 0;
             consumption_monitor.reset();
-            track_started = false;
+            if (!replay)
+                track_started = false;
             for (Track::Sign& s : track.signs) {
                 if (s.type == Track::Sign::TrafficLight)
                     s.traffic_light_state = Track::Sign::Red;
@@ -88,13 +95,14 @@ protected slots:
         osc->send_float("/startEngine", 0);
         start_button->setText("Pause");
     }
-    void stop() {
-        tick_timer.stop();
-        started = false;
-        osc->call("/stopEngine");
-        update_sound_modus(0);
-        start_button->setText("Cont.");
-        //save_svg();
+
+signals:
+    void slow_tick(qreal dt, qreal elapsed, ConsumptionMonitor& consumption_monitor);
+
+protected slots:
+
+    void start_stop() {
+        started ? stop() : start();
     }
 
     bool tick();
@@ -115,6 +123,8 @@ protected:
         }
         //printf("%.3f\n", trees[0].pos);
     }
+
+    void prepare_track();
 
     void save_svg() {
         QSvgGenerator generator;
@@ -190,8 +200,9 @@ protected:
     OSCSender* osc = NULL;
     int sound_modus = 0;
     QDateTime program_start_time;
+    bool replay = false;
+    int replay_index = 0;
 };
-
 
 
 #endif // QCARVIZ_H

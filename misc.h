@@ -64,6 +64,7 @@ struct TimeDelta {
         }
         return false;
     }
+    void add_dt(qreal const dt) { elapsed += dt * 1000; }
     qreal get_elapsed() {
         return elapsed * 0.001;
     }

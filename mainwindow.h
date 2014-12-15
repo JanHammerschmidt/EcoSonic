@@ -58,6 +58,8 @@ public slots:
 private slots:
     void on_tabWidget_currentChanged(int index);
 
+    void on_actionOpen_Log_triggered();
+
 private:
     Ui::MainWindow *ui;
     Car car;

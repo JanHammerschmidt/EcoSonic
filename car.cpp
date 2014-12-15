@@ -1,21 +1,20 @@
 #include <QDateTime>
 #include "car.h"
 #include "logging.h"
-#include <assert.h>
 
 void Car::save_log(QDateTime& program_start_time) {
-    assert(log != nullptr);
-    log->save(QDir::homePath()+"/EcoSonic/"+program_start_time.toString("yy-MM-dd_hh-mm")+"/"+QDateTime::currentDateTime().toString("mm-ss")+".bin");
-    delete log;
+    Q_ASSERT(log != nullptr);
+    log->save(QDir::homePath()+"/EcoSonic/"+program_start_time.toString("yy-MM-dd_hh-mm")+"/"+QDateTime::currentDateTime().toString("mm-ss")+".log");
+    log.reset();
 }
 
-qreal Car::tick(qreal const dt, qreal alpha)
+qreal Car::tick(qreal const dt, qreal alpha, bool replay)
 {
     if (dt <= 0)
         return 0;
 
     //logging
-    if (log) {
+    if (log && !replay) {
         log->add_item(throttle, braking, gearbox.gear, dt);
     }
 

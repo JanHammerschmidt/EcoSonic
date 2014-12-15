@@ -6,6 +6,8 @@
 #include "track.h"
 #include "misc.h"
 
+#define LOG_VERSION "1.0"
+
 struct LogItem
 {
     qreal throttle;
@@ -24,13 +26,17 @@ struct Log
     }
 
     bool save(const QString filename) const { return saveObj(filename, *this); }
-    //bool load(const QString filename) { return loadObj(filename, *this); }
+    bool load(const QString filename) { return loadObj(filename, *this); }
 
     Car* car;
     Track* track;
     QList<LogItem> items;
     qreal elapsed_time = 0;
     qreal liters_used = 0;
+    int sound_modus = 0;
+    qreal initial_angular_velocity = 0;
+    QString version = LOG_VERSION;
+    bool valid = true;
 };
 
 
@@ -44,11 +50,12 @@ inline QDataStream &operator>>(QDataStream &in, LogItem &i) {
 }
 
 inline QDataStream &operator<<(QDataStream &out, const Log &log) {
-    out << *log.car << *log.track << log.items << log.elapsed_time << log.liters_used;
+    out << log.version << *log.car << *log.track << log.items << log.elapsed_time << log.liters_used << log.sound_modus << log.initial_angular_velocity;
     return out;
 }
 inline QDataStream &operator>>(QDataStream &in, Log &log) {
-    in >> *log.car >> *log.track >> log.items >> log.elapsed_time >> log.liters_used;
+    in >> log.version >> *log.car >> *log.track >> log.items >> log.elapsed_time >> log.liters_used >> log.sound_modus >> log.initial_angular_velocity;
+    log.valid = (log.version == QString(LOG_VERSION));
     return in;
 }
 

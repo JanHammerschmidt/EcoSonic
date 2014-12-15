@@ -2,7 +2,6 @@
 #define HUD_H
 
 #include <type_traits>
-#include <assert.h>
 #include <QTime>
 
 struct Speedometer {
@@ -150,7 +149,7 @@ struct ConsumptionDisplay {
 struct TimeDisplay {
     void draw(QPainter& painter, QPointF pos, int max_time, qreal time_elapsed, bool track_started, bool draw_remaining = true)
     {
-        assert(draw_remaining == true);
+        Q_ASSERT(draw_remaining == true);
         if (track_started || draw_remaining) {
             QTime t(0,0);
             t = t.addSecs(std::max(0.0, track_started ? max_time - time_elapsed : max_time));
