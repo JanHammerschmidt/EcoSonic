@@ -51,10 +51,15 @@ public:
                 osc->call("/slurp_stop");
             else if (this->sound_modus == 2)
                 osc->call("/pitch_stop");
+            else if (this->sound_modus == 3)
+                osc->call("/grain_stop");
+
             if (sound_modus == 1)
                 osc->call("/slurp_start");
             else if (sound_modus == 2)
                 osc->call("/pitch_start");
+            else if (sound_modus == 3)
+                osc->call("/grain_start");
             this->sound_modus = sound_modus;
         }
     }

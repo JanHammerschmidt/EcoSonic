@@ -21,9 +21,13 @@ void QTrackEditor::paintEvent(QPaintEvent *)
         const bool main_points_only = show_control_points->value() < 2;
         const qreal point_size = this->point_size;
         painter.setPen(QColor(50, 100, 120, 200));
-        painter.setBrush(QColor(200, 200, 210, 120));
         for (int i=0; i<=track.num_points*3; ++i) {
             QPointF pos = Track::tf(track.points[i],h);
+            //if (i % 3)
+                painter.setBrush(QColor(200, 200, 210, (i%3) ? 30 : 120));
+            //else
+                //painter.setBrush(QColor(160, 160, 160, 120));
+
             painter.drawEllipse(QRectF(pos.x() - point_size,
                                        pos.y() - point_size,
                                        point_size*2, point_size*2));
@@ -60,6 +64,15 @@ void QTrackEditor::mousePressEvent(QMouseEvent *e)
     for (int i = 0; i < track.signs.size(); i++) {
         if (track.signs[i].get_position(pos, pole_pos, path) && pos.contains(mp)) {
             sign_moving = i;
+            selected_traffic_light = (track.signs[i].type == Track::Sign::TrafficLight) ? &track.signs[i] : nullptr;
+            if (selected_traffic_light) {
+                Track::Sign::TrafficLightInfo& info = selected_traffic_light->traffic_light_info;
+                tl_min_time->setValue(info.time_range.first);
+                tl_max_time->setValue(info.time_range.second);
+                tl_distance->setValue(info.trigger_distance);
+            }
+            for (auto w : tl_widgets)
+                w->setVisible(!!selected_traffic_light);
             break;
         }
     }

@@ -134,13 +134,19 @@ bool QCarViz::tick() {
     if (track_started)
         car->gearbox.auto_clutch_control(car);
 
-    if (!replay) {
-        // sound modus (supercollider)
-        update_sound_modus(keyboard_input.get_sound_modus());
-    }
+    // sound modus (supercollider)
+    update_sound_modus(keyboard_input.get_sound_modus());
     // control window
-    if (keyboard_input.show_control_window() && sound_modus == 2)
-        osc->call("/pitch_show_controls");
+    if (keyboard_input.show_control_window() && (sound_modus == 2 || sound_modus == 3))
+        osc->call("/show_controls");
+    // toggle pitch control (for grains)
+    if (keyboard_input.pitch_toggle() && sound_modus == 3)
+        osc->call("/grain_toggle_pitch");
+    // volume control
+    if (keyboard_input.vol_up())
+        osc->call("/vol_up");
+    else if (keyboard_input.vol_down())
+        osc->call("/vol_down");
 
     if (!replay) {
         // pedal input

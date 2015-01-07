@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>799</width>
-    <height>511</height>
+    <width>1138</width>
+    <height>808</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -21,7 +21,7 @@
        <enum>Qt::StrongFocus</enum>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>2</number>
       </property>
       <property name="usesScrollButtons">
        <bool>false</bool>
@@ -522,8 +522,8 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>550</width>
-               <height>406</height>
+               <width>877</width>
+               <height>703</height>
               </rect>
              </property>
             </widget>
@@ -567,6 +567,30 @@
              </widget>
             </item>
             <item>
+             <widget class="QLabel" name="label_5">
+              <property name="text">
+               <string>Distance for
+new Points</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="track_new_points_distance">
+              <property name="minimum">
+               <number>50</number>
+              </property>
+              <property name="maximum">
+               <number>500</number>
+              </property>
+              <property name="singleStep">
+               <number>10</number>
+              </property>
+              <property name="value">
+               <number>150</number>
+              </property>
+             </widget>
+            </item>
+            <item>
              <widget class="QLabel" name="label_2">
               <property name="text">
                <string>Points</string>
@@ -575,6 +599,14 @@
             </item>
             <item>
              <widget class="QSpinBox" name="track_points"/>
+            </item>
+            <item>
+             <widget class="QPushButton" name="track_prune_points">
+              <property name="text">
+               <string>Prune
+Points</string>
+              </property>
+             </widget>
             </item>
             <item>
              <widget class="QLabel" name="label_3">
@@ -605,6 +637,88 @@ Sign</string>
              <widget class="QPushButton" name="track_reset">
               <property name="text">
                <string>Reset</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="verticalSpacer_2">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>40</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <widget class="QLabel" name="lbl_min_time">
+              <property name="text">
+               <string>Min time</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="track_tl_min_time">
+              <property name="minimum">
+               <number>50</number>
+              </property>
+              <property name="maximum">
+               <number>10000</number>
+              </property>
+              <property name="singleStep">
+               <number>50</number>
+              </property>
+              <property name="value">
+               <number>7000</number>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="lbl_max_time">
+              <property name="text">
+               <string>Max time</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="track_tl_max_time">
+              <property name="minimum">
+               <number>50</number>
+              </property>
+              <property name="maximum">
+               <number>10000</number>
+              </property>
+              <property name="singleStep">
+               <number>50</number>
+              </property>
+              <property name="value">
+               <number>7000</number>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="lbl_distance">
+              <property name="text">
+               <string>Distance</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="track_tl_distance">
+              <property name="minimum">
+               <number>100</number>
+              </property>
+              <property name="maximum">
+               <number>1000</number>
+              </property>
+              <property name="singleStep">
+               <number>10</number>
+              </property>
+              <property name="value">
+               <number>500</number>
               </property>
              </widget>
             </item>
@@ -739,7 +853,7 @@ Sign</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>799</width>
+     <width>1138</width>
      <height>22</height>
     </rect>
    </property>

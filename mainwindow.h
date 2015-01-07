@@ -60,6 +60,8 @@ private slots:
 
     void on_actionOpen_Log_triggered();
 
+    void on_track_prune_points_clicked();
+
 private:
     Ui::MainWindow *ui;
     Car car;

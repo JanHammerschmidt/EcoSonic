@@ -2,6 +2,7 @@
 #define HUD_H
 
 #include <type_traits>
+#include <QTextStream>
 #include <QTime>
 
 struct Speedometer {

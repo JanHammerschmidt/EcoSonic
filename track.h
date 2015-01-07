@@ -6,6 +6,7 @@
 #include <QImage>
 #include <QPainter>
 #include <QSvgRenderer>
+#include <hud.h>
 #include "misc.h"
 
 struct TreeType {
@@ -130,6 +131,23 @@ struct Track {
             Track::SignImage& img = type == TrafficLight ? images.traffic_light_images[traffic_light_state]
                                                  : images.sign_images[type];
             img.is_svg ? img.svg->render(&painter, pos) : painter.drawImage(pos, *img.img);
+            if (type == TrafficLight) {
+                // draw time range
+                QFont font("Eurostile", 12); // font.setBold(false);
+                painter.setFont(font);
+                QFontMetrics fm = painter.fontMetrics();
+                QString s;
+                QPointF p((pos.left() + pos.right()) / 2, pos.top() - 1.1 * fm.height());
+                s.sprintf("%02.1f", traffic_light_info.time_range.first / 1000.);
+                Speedometer::draw_centered_text(painter, fm, s, p);
+                s.sprintf("%02.1f", traffic_light_info.time_range.first / 1000.);
+                p.setY(p.y() - 1.1 * fm.height());
+                Speedometer::draw_centered_text(painter, fm, s, p);
+                // draw trigger distance
+                qreal const percent = path.percentAtLength(at_length - traffic_light_info.trigger_distance);
+                p = path.pointAtPercent(percent);
+                painter.drawLine(p + QPointF(0, 5), p - QPointF(0, 10));
+            }
             return true;
         }
         bool is_speed_sign() const { return type >= Speed30 && type <= Speed130; }
@@ -147,6 +165,10 @@ struct Track {
             dist = s.at_length - prev_pos - 50;
         if (dist < min_dist)
             dist = min_dist;
+        // also check time range
+        std::pair<qreal,qreal>& tr = s.traffic_light_info.time_range;
+        if (tr.first > tr.second)
+            tr.first = tr.second;
     }
 
     void prepare_track() {
