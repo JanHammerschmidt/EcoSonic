@@ -207,6 +207,13 @@ protected:
     QDateTime program_start_time;
     bool replay = false;
     int replay_index = 0;
+    std::auto_ptr<QSvgRenderer> turn_sign;
+    QRectF turn_sign_rect;
+    enum Arrow {
+        None,
+        Right,
+        Left,
+    } show_arrow = None;
 };
 
 

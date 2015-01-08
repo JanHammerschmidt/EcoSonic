@@ -13,7 +13,7 @@ void QTrackEditor::paintEvent(QPaintEvent *)
 
     // draw the signs
     for (int i = 0; i < track.signs.size(); i++) {
-        track.signs[i].draw(painter, path);
+        track.signs[i].draw(painter, path, true);
     }
 
     // Draw the control points

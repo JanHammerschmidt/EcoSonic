@@ -18,6 +18,8 @@ QCarViz::QCarViz(QWidget *parent)
     add_tree_type("spooky_tree", 0.06, 120);
 
     car_img.load("media/cars/car.png");
+    turn_sign.reset(new QSvgRenderer(QString("media/turn_sign.svg")));
+    turn_sign_rect = QRectF(QPointF(0, 0), 0.03 * turn_sign->defaultSize());
     track.load();
     update_track_path(height());
     fill_trees();
@@ -120,6 +122,16 @@ bool QCarViz::tick() {
                 car->gearbox.gear_down();
             gear_spinbox->setValue(car->gearbox.gear+1);
         }
+        if (keyboard_input.show_arrow()) {
+            std::uniform_int_distribution<int> direction(0,1);
+            show_arrow = direction(rng) == 0 ? Left : Right;
+        }
+        if ((show_arrow == Left && keyboard_input.keys_pressed.contains(Qt::Key_O))
+                || (show_arrow == Right && keyboard_input.keys_pressed.contains(Qt::Key_P)))
+        {
+            show_arrow = None;
+        }
+
 //    // manual clutch control
 //    const bool toggle_clutch = keyboard_input.toggle_clutch();
 //    if (toggle_clutch) {
@@ -249,6 +261,18 @@ void QCarViz::draw(QPainter& painter)
     t.translate(-car_width/2, -car_height);
     painter.setTransform(t);
     painter.drawImage(QRectF(0,0, car_width, car_height), car_img);
+
+    // draw an arrow
+    if (show_arrow != None) {
+        t.reset();
+        t.translate(car_x_pos - 0.5 * turn_sign_rect.width(), cur_p.y() - car_height - turn_sign_rect.height() - 10);
+        if (show_arrow == Left) {
+            t.scale(-1,1);
+            t.translate(-turn_sign_rect.width(),0);
+        }
+        painter.setTransform(t);
+        turn_sign->render(&painter, turn_sign_rect);
+    }
 
     // draw the trees in the foreground
     t.reset();

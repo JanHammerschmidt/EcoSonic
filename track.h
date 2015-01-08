@@ -123,7 +123,7 @@ struct Track {
             pole_pos = QRectF(p.x() - 0.5 * images.pole_size.width(), p.y() - images.pole_size.height(), images.pole_size.width(), images.pole_size.height());
             return true;
         }
-        bool draw(QPainter& painter, QPainterPath& path) {
+        bool draw(QPainter& painter, QPainterPath& path, bool editor = false) {
             QRectF pos, pole_pos;
             if (!get_position(pos, pole_pos, path))
                 return false;
@@ -131,7 +131,7 @@ struct Track {
             Track::SignImage& img = type == TrafficLight ? images.traffic_light_images[traffic_light_state]
                                                  : images.sign_images[type];
             img.is_svg ? img.svg->render(&painter, pos) : painter.drawImage(pos, *img.img);
-            if (type == TrafficLight) {
+            if (editor && type == TrafficLight) {
                 // draw time range
                 QFont font("Eurostile", 12); // font.setBold(false);
                 painter.setFont(font);
