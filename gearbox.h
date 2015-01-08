@@ -122,7 +122,6 @@ public:
             engine.torque_counter = 0;
         return engine.torque_counter * gears[gear] * end_transmission / wheel_radius;
 
-
 //        if (!clutch) {
 //            engine.torque_counter = 0;
 //            clutch_max_rpm_diff = abs(engine.rpm() - speed2engine_rpm(speed));
@@ -143,8 +142,20 @@ public:
 
     void gear_up() {
         gear = std::min(gear+1, gears.size()-1);
+        emit gear_changed(gear);
     }
-    void gear_down() { gear = std::max(gear -1, 0); }
+    void gear_down() {
+        gear = std::max(gear -1, 0);
+        emit gear_changed(gear);
+    }
+    void set_gear(int gear) {
+        const bool changed = this->gear != gear;
+        this->gear = gear;
+        if (changed)
+            emit gear_changed(gear);
+    }
+    int get_gear() { return gear; }
+
     //void disengage() { clutch.disengage(); }
     //void engine_idle() { gear = 0; clutch = 0; }
 
@@ -164,8 +175,9 @@ public:
 signals:
     void gear_changed(int gear);
 
-public:
+private:
     int gear;
+public:
     QVector<qreal> gears; // gear-transmissions
     QVector<qreal> mass_factors;
     qreal end_transmission;

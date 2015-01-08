@@ -15,7 +15,7 @@ qreal Car::tick(qreal const dt, qreal alpha, bool replay)
 
     //logging
     if (log && !replay) {
-        log->add_item(throttle, braking, gearbox.gear, dt);
+        log->add_item(throttle, braking, gearbox.get_gear(), dt);
     }
 
     // get forward force
@@ -33,7 +33,7 @@ qreal Car::tick(qreal const dt, qreal alpha, bool replay)
     F -= braking * max_breaking_force; // breaking force
 
     // calculate acceleration
-    qreal const mass_factor = gearbox.mass_factors[gearbox.gear];
+    qreal const mass_factor = gearbox.mass_factors[gearbox.get_gear()];
     qreal a;
     if (F > 0) {
         a = F / (mass * mass_factor);

@@ -72,7 +72,10 @@ MainWindow::MainWindow(QWidget *parent)
     ui->car_viz->init(&car, ui->start, ui->throttle, ui->breaking, ui->gear, this, &osc);
     QObject::connect(ui->car_viz, SIGNAL(slow_tick(qreal,qreal, ConsumptionMonitor&)),
                      this, SLOT(update_plots(qreal,qreal,ConsumptionMonitor&)));
-    QObject::connect(&car.gearbox, &Gearbox::gear_changed, [=](int gear){ ui->gear->setValue(gear+1); });
+    QObject::connect(&car.gearbox, &Gearbox::gear_changed, [=](int gear){
+        ui->gear->setValue(gear+1);
+        osc.send_float("/gear", gear+1);
+    });
 
 #if 0
     plot_torque_map(ui->plot_speed, car.engine);
@@ -137,7 +140,7 @@ void MainWindow::update_plots(qreal, qreal elapsed, ConsumptionMonitor& consumpt
     plot_throttle2torque(*throttle2torque, car);
 
     // update from user input
-    car.gearbox.gear = ui->gear->value() - 1;
+    car.gearbox.set_gear(ui->gear->value() - 1);
     //car.gearbox.auto_clutch_control(car.engine, dt);
     //ui->clutch->setValue(car.gearbox.clutch * 100);
     //car.gearbox.clutch = ui->clutch->value() / 100.;

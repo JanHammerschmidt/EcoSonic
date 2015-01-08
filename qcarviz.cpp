@@ -88,7 +88,7 @@ void QCarViz::prepare_track() {
 bool QCarViz::tick() {
     Q_ASSERT(started);
     qreal dt;
-    static bool changed = false;
+    static bool changed = false; // if throttle / gas have changed (for the sliders in the gui)
     if (replay == true) {
         if (replay_index >= car->log->items.size()) {
             //printf("elapsed_time: %.3f\n", time_delta.get_elapsed() - track_started_time);
@@ -99,7 +99,7 @@ bool QCarViz::tick() {
         LogItem& log_item = car->log->items[replay_index];
         dt = log_item.dt;
         car->braking = log_item.braking;
-        car->gearbox.gear = log_item.gear;
+        car->gearbox.set_gear(log_item.gear);
         car->throttle = log_item.throttle;
         changed = true;
         replay_index++;
@@ -120,14 +120,15 @@ bool QCarViz::tick() {
                 car->gearbox.gear_up();
             else if (gear_change < 0)
                 car->gearbox.gear_down();
-            gear_spinbox->setValue(car->gearbox.gear+1);
+            gear_spinbox->setValue(car->gearbox.get_gear()+1);
         }
         if (keyboard_input.show_arrow()) {
             std::uniform_int_distribution<int> direction(0,1);
-            show_arrow = direction(rng) == 0 ? Left : Right;
+            show_arrow = direction(rng) == 0 ? Arrow::Left : Arrow::Right;
+            printf("%s\n", show_arrow == Arrow::None ? "None" : (show_arrow == Arrow::Left ? "Left" : "Right"));
         }
-        if ((show_arrow == Left && keyboard_input.keys_pressed.contains(Qt::Key_O))
-                || (show_arrow == Right && keyboard_input.keys_pressed.contains(Qt::Key_P)))
+        if ((show_arrow == Arrow::Left && keyboard_input.keys_pressed.contains(Qt::Key_O))
+                || (show_arrow == Arrow::Right && keyboard_input.keys_pressed.contains(Qt::Key_P)))
         {
             show_arrow = None;
         }
@@ -161,11 +162,27 @@ bool QCarViz::tick() {
         osc->call("/vol_down");
 
     if (!replay) {
-        // pedal input
-        if (pedal_input.valid() && pedal_input.update()) {
-            car->throttle = pedal_input.gas();
-            car->braking = pedal_input.brake();
-            changed = true;
+        // Wingman input
+        if (wingman_input.valid()) {
+            if (wingman_input.update()) {
+                car->throttle = wingman_input.gas();
+                car->braking = wingman_input.brake();
+                changed = true;
+            }
+            if (wingman_input.update_buttons()) {
+                if (wingman_input.left_click())
+                    car->gearbox.gear_down();
+                if (wingman_input.right_click())
+                    car->gearbox.gear_up();
+                gear_spinbox->setValue(car->gearbox.get_gear()+1);
+            }
+            if (show_arrow != None) {
+                wingman_input.update_wheel();
+                if (show_arrow == Left && wingman_input.steering_left())
+                    show_arrow = None;
+                if (show_arrow == Right && wingman_input.steering_right())
+                    show_arrow = None;
+            }
         }
         if (!track_started && car->throttle > 0) {
             track_started = true;
@@ -263,10 +280,13 @@ void QCarViz::draw(QPainter& painter)
     painter.drawImage(QRectF(0,0, car_width, car_height), car_img);
 
     // draw an arrow
-    if (show_arrow != None) {
+    //printf("%s ", show_arrow == Arrow::None ? "None" : (show_arrow == Arrow::Left ? "Left" : "Right"));
+    if (show_arrow != Arrow::None) {
+        //printf("draw ");
         t.reset();
         t.translate(car_x_pos - 0.5 * turn_sign_rect.width(), cur_p.y() - car_height - turn_sign_rect.height() - 10);
-        if (show_arrow == Left) {
+        if (show_arrow == Arrow::Left) {
+            //printf("left! ");
             t.scale(-1,1);
             t.translate(-turn_sign_rect.width(),0);
         }

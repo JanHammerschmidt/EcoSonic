@@ -21,7 +21,7 @@
 #include <random>
 #include "hud.h"
 #include "qtrackeditor.h"
-#include "PedalInput.h"
+#include "wingman_input.h"
 #include "KeyboardInput.h"
 #include "misc.h"
 #include "track.h"
@@ -195,7 +195,7 @@ protected:
     QSlider* throttle_slider = NULL;
     QSlider* breaking_slider = NULL;
     QSpinBox* gear_spinbox = NULL;
-    PedalInput pedal_input;
+    WingmanInput wingman_input;
     KeyboardInput keyboard_input;
     ConsumptionMonitor consumption_monitor;
     HUD hud;

@@ -75,6 +75,7 @@ HEADERS  += mainwindow.h \
     speed_observer.h \
     misc.h \
     KeyboardInput.h \
-    logging.h
+    logging.h \
+    wingman_input.h
 
 FORMS    += mainwindow.ui

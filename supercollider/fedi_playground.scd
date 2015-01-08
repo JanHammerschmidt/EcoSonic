@@ -1,5 +1,91 @@
-// generate a slurp-sound when above optimal rpm
+/*b=Bus.audio(s, 2);
+SynthDef(\aa, {
+	Out.ar(~engine_out, SinOsc.ar([330,440], 0, 0.4))
+}).send(s)
+a = Synth(\engine);
+a={
+	Out.ar(~engine_out, SinOsc.ar([330,440], 0, 0.4))
+}.play //(s, b) //you won't hear this if you only have two channels
+~engine_out.scope
+{Out.ar(0, ~engine_out.ar)}.play(addAction:\addToTail)
+
+{ Pulse.ar(90, 0.3, Amplitude.kr(SoundIn.ar(0))) }.play;
+
+t={|attack=3,release=3|
+	AmplitudeMod.kr(~engine_out.ar, attack, release)
+}.scope(zoom:0.01);
+{~control_gui2.value([
+		[t, \attack, [0.5,5], "attack"],
+		[t, \release, [0.5, 5], "release"],
+	], false)}.defer(0.2);
+
+
+Bus.audio(s,
+{ SinOsc.ar(MouseX.kr(300, 15000, 1)) * 0.1 }.play;
 (
+{
+    var freq;
+    freq = MouseX.kr(300, 15000, 1);
+    SinOsc.ar(freq) * 0.1 * AmpComp.kr(freq, 300)
+}.play;
+)
+(200,210..10000).collect {|freq| (200/freq) ** 0.3333 }.plot;
+
+(
+// use input amplitude to control SinOsc frequency
+{
+    SinOsc.ar(
+            Amplitude.kr(
+                        Blip.ar(3, 20) * LFNoise1.kr(0.1).range(0, 1),
+                        MouseX.kr(0.001, 1, 1),
+                        MouseY.kr(0.001, 1, 1),
+                        1200,
+                        400
+            ),
+            0, 0.3)
+}.play;
+)
+~test = Bus.audio(s, 2);
+~k = {|v=1| Out.ar(~test, {v*SinOsc.ar(300)}!2)}.play
+~amp_test = Bus.control(s)
+{Out.kr(~amp_test, Amplitude.kr(~engine_out.ar, 0.5, 0.5, 1, 0))}.play
+~amp_test.getSynchronous(s)
+	~engine_out.scope()
+{Amplitude.kr(~test.ar, 0.5, 0.5, 1, 0)}.scope
+~k.free
+
+{Amplitude.kr(Out.ar(0), 0.5, 0.5, 1200, 10)}.plot
+
+~fedi_stream.get(\db, {|v| v.postln})
+~fedi_stream.set(\db, -1)
+~t1 = 10; ~t2 = 20;
+"vol:"+(~t1+~t2).postln
+~fedi_stream_vol_add.value(-1)
+~fedi_stream.get(\db, {|v| ~fedi_stream.set(\db, v-1); ("vol:"+(v-1)).postln});
+*/
+
+(
+// main output bus for volume control
+~fedi_out = Bus.audio(s, 2);
+// stream everything to output
+~fedi_stream = { |db = 0.0|
+	Out.ar(0, db.dbamp * ~fedi_out.ar);
+}.play;
+~fedi_stream_vol_add = {|x|
+	~fedi_stream.get(\db, {|v| ~fedi_stream.set(\db, v+x); ("vol:"+(v+x)).postln});
+};
+OSCdef(\msg_vol_up, {|m| ~fedi_stream_vol_add.value(0.2)}, '/vol_up');
+OSCdef(\msg_vol_down, {|m| ~fedi_stream_vol_add.value(-0.2)}, '/vol_down');
+
+// misc functions
+~free_synth = {|s| if(s !== nil, {s.free}); nil};
+~close_window = {|s| if(s !== nil, {{s.close}.defer(0.2)}); nil};
+~show_controls_osc_none = {
+	OSCdef(\msg_show_controls, {|m|}, '/show_controls');
+};
+
+
+// generate a slurp-sound when above optimal rpm
 ~buf_slurp = Buffer.read(s, "/Users/jhammers/slurp-sounds/slurp_cont.wav");
 ~bus_slurp = Bus.audio(s, 2);
 
@@ -13,7 +99,7 @@
 };
 ~slurp_lpf_play = {
 	~slurp_lpf = {|f=15000,m=2| // f:[200,15000], m:[0,5] (oder so ..)
-		LPF.ar(~bus_slurp.ar, f, m) //*1.5)
+		Out.ar(~fedi_out, LPF.ar(~bus_slurp.ar, f, m)) //*1.5)
 	}.play;
 };
 ~slurp_stop = {
@@ -26,11 +112,11 @@
 	~slurp_lpf_play.value;
 	OSCdef(\msg_rpm, {|m|
 		~rpm_handler.value(m[1]); // still control the engine-sound!
-		~slurp_lpf.set(\m, m[1].linlin(0.38,0.65, 0,1.2));
+		if (~gear == 6, {~slurp_lpf.set(\m, 0)},{~slurp_lpf.set(\m, m[1].linlin(0.38,0.65, 0,1.2));});
 		//~lpf.set(\f, m[1].linlin(0.38,1, 400,15000));
 		//m[1].postln;
 	}, '/rpm');
-	~slurp_play.value;
+	{~slurp_play.value}.defer(0.2);
 };
 OSCdef(\msg_slurp_start, {|m|
 	"slurp_start".postln;
@@ -44,8 +130,9 @@ OSCdef(\msg_slurp_stop, {|m|
 
 // map fuel consumption on pitched noise
 ~pitch_stop = {
-	//if (~pitch_control_window != nil, {~pitch_control_window.close; ~pitch_control_window = nil});
-	if (~pitch != nil, {~pitch.free; ~pitch = nil});
+	~pitch = ~free_synth.value(~pitch);
+	~pitch_control_window = ~close_window.value(~pitch_control_window);
+	~show_controls_osc_none.value;
 };
 ~pitch_show_controls = {
 	{~pitch_control_window = ~control_gui2.value([
@@ -54,9 +141,11 @@ OSCdef(\msg_slurp_stop, {|m|
 		[~pitch, \a, [0.4,5], "ampl."],
 	], false)}.defer(0.2);
 };
-OSCdef(\msg_pitch_show_controls, {|m|
-	~pitch_show_controls.value;
-}, '/pitch_show_controls');
+~pitch_show_controls_osc = {
+	OSCdef(\msg_show_controls, {|m|
+		~pitch_show_controls.value;
+	}, '/show_controls');
+};
 OSCdef(\msg_pitch_stop, {|m|
 	"pitch_stop".postln;
 	~pitch_stop.value;
@@ -64,48 +153,88 @@ OSCdef(\msg_pitch_stop, {|m|
 OSCdef(\msg_pitch_start, {|m|
 	"pitch_start".postln;
 	~pitch_stop.value;
-	~pitch = {|f=300,bw=0.1,a=1| {a*Resonz.ar(WhiteNoise.ar(0.5), f, bw)}!2 }.play;
+	~pitch = {|f=300,bw=0.1,a=1| Out.ar(~fedi_out, {a*Resonz.ar(WhiteNoise.ar(0.5), f, bw)}!2)}.play;
 	OSCdef(\msg_L_100km, {|m| // range [0-40?]
 		if(m[1].isNaN.not && (m[1] != inf) && (~pitch != nil), {
 			~pitch.set(\f, m[1].linlin(0,40,300,3000));
 		});
 	}, '/L_100km');
+	~pitch_show_controls_osc.value;
 }, '/pitch_start');
+
+
+// map (absolute) fuel consumption on the frequency of grains
+// optionally with modifying the cutoff freq based on l/100km
+// here, the impulses for the grains come directly from the program
+
+~grain_pitch = false; // modify cutoff freq based on l/100km
+~sound_control_bus = Bus.control(s, 3); // control bus for controlling the triggered sound
+~triggered_sound = { // the sound that gets triggered
+	var p = ~sound_control_bus.getnSynchronous(3);
+	Out.ar(~fedi_out, {LPF.ar(WhiteNoise.ar(p[2]), p[0])
+		* EnvGen.ar(Env.perc(0.001,0.5), doneAction:2)}!2);
+};
+~grain_stop = {
+	~sound_control = ~free_synth.value(~sound_control);
+	OSCdef(\msg_consumption_tick, {|m|}, '/consumption_tick'); // no response!
+	~grain_control_window = ~close_window.value(~grain_control_window);
+	~show_controls_osc_none.value;
+};
+~grain_show_controls = {
+	{~grain_control_window = ~control_gui2.value([
+		[~onset_input, \f, [0,3], "freq"],
+		[~sound_control, \f, [200, 2000], "PF freq"],
+		[~sound_control, \bw, [0.01, 0.6], "BPF bandwidth"],
+		[~sound_control, \a, [0.4,5], "amplitude"],
+	], false)}.defer(0.2);
+};
+OSCdef(\msg_grain_start, {|m|
+	"grain_start".postln;
+	~grain_stop.value;
+	~grain_pitch = false;
+	~sound_control = {|f=300, bw=0.1, a=1| // synth writing on the control bus
+		Out.kr(~sound_control_bus, [f, bw, a])
+	}.play;
+	OSCdef(\msg_consumption_tick, {|m|
+		//~freq = m[1]; ...
+		~triggered_sound.play() //args: [\f, ~freq])
+	}, '/consumption_tick');
+	OSCdef(\msg_show_controls, {|m|
+		~grain_show_controls.value;
+	}, '/show_controls');
+}, '/grain_start');
+OSCdef(\msg_grain_stop, {|m|
+	"grain_stop".postln;
+	~grain_stop.value;
+}, '/grain_stop');
+OSCdef(\msg_grain_toggle_pitch, {|m|
+	if(~grain_pitch, {
+		"grain_pitch: off".postln;
+		OSCdef(\msg_L_100km, {|m|}, '/L_100km');
+		~grain_pitch = false;
+	}, {
+		"grain_pitch: on".postln;
+		OSCdef(\msg_L_100km, {|m| // range [0-40?] // this is optional!
+			if(m[1].isNaN.not && (m[1] != inf), {
+				~sound_control.set(\f, m[1].linlin(0,40,300,2000));
+			});
+		}, '/L_100km');
+		~grain_pitch = true;
+	});
+}, '/grain_toggle_pitch');
+
+
 "FEDIs initialized!"
 )
 
 
-~pitch_control_window
-if (~pitch_control_window != nil, {~pitch_control_window.close});
-
-
-// same as below, but the impulses for the grains come directly from the program
 (
-~sound_control_bus = Bus.control(s, 3); // control bus for controlling the triggered sound
-~sound_control = {|f=300, bw=0.1, a=1| // synth writing on the control bus
-	Out.kr(~sound_control_bus, [f, bw, a])
-}.play;
-~triggered_sound = { // the sound that gets triggered
-	var p = ~sound_control_bus.getnSynchronous(3);
-	{LPF.ar(WhiteNoise.ar(p[2]), p[0])
-		* EnvGen.ar(Env.perc(0.001,0.5), doneAction:2)}!2;
-};
-OSCdef(\msg_consumption_tick, {|m|
-	//~freq = m[1]; ...
-	~triggered_sound.play() //args: [\f, ~freq])
-}, '/consumption_tick');
-{~control_gui2.value([
-	[~onset_input, \f, [0,3], "freq"],
-	[~sound_cssssssssontrol, \f, [200, 2000], "PF freq"],
-	[~sound_control, \bw, [0.01, 0.6], "BPF bandwidth"],
-	[~sound_control, \a, [0.4,5], "amplitude"],
-], false)}.defer(0.2);
-/*OSCdef(\msg_L_100km, {|m| // range [0-40?] // this is optional!
-	if(m[1].isNaN.not && (m[1] != inf), {
-		~sound_control.set(\f, m[1].linlin(0,40,300,2000));
-	});
-}, '/L_100km');*/
+
 )
+
+
+
+
 
 // map (absolute) fuel consumption on the frequency of grains
 // optionally with modifying the cutoff freq based on l/100km
@@ -149,6 +278,7 @@ OSCdef(\msg_consumption_tick, {|m|
 OSCdef(\msg_ml_sec, {|m| // range: [0-5]
 	~onset_input.set(\f, m[1].linlin(0,5,0,1.5));
 }, '/ml_sec');
+
 OSCdef(\msg_L_100km, {|m| // range [0-40?] // this is optional!
 	if(m[1].isNaN.not && (m[1] != inf), {
 		~sound_control.set(\f, m[1].linlin(0,40,300,2000));

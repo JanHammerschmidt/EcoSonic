@@ -5,6 +5,11 @@ Server.default = s;
 s.boot;
 //s.volume = -10
 
+// main output bus for engine
+~engine_out = Bus.audio(s, 2);
+
+~gear = 1; // gears from 1 to 6
+
 {
 // define Engine-Synth
 SynthDef(\engine, {
@@ -112,7 +117,8 @@ SynthDef(\engine, {
 
 	engine = (spacewarp + fourstroke)!2 * 0.5;
 
-	Out.ar(0, engine);
+	Out.ar(~engine_out, engine); // Out.ar(0
+	//Out.ar(~engine_out, SinOsc.ar([330,440], 0, 0.4))
 
 }).send(s);
 
@@ -120,19 +126,32 @@ SynthDef(\engine, {
 ~buf_honk = Buffer.read(s, "/Users/jhammers/Dropbox/Eigene Dateien/phd/code/car_simulator/media/honking/honk.wav");
 ~buf_flash = Buffer.read(s, "/Users/jhammers/Dropbox/Eigene Dateien/phd/code/car_simulator/media/flash/shutter.wav");
 
-// define OSC functions
-OSCdef(\msg_startEngine, {|m|
+//start & stop engine
+~start_engine = {
 	"startEngine".postln;
 	~engine.free;
+	~engine_stream.free;
+	~engine_stream = {
+		Out.ar(0, ~engine_out.ar);
+	}.play(addAction:\addToTail);
 	~engine = Synth(\engine);
-}, '/startEngine');
-OSCdef(\msg_stopEngine, {|m|
+};
+~stop_engine = {
 	"stopEngine".postln;
 	~engine.set(\engineSpeed, 0);
 	{
 		~engine.free;
 		~engine = nil;
+		~engine_stream.free;
+		~engine_stream = nil;
 	}.defer(1);
+};
+// define OSC functions
+OSCdef(\msg_startEngine, {|m|
+	~start_engine.value;
+}, '/startEngine');
+OSCdef(\msg_stopEngine, {|m|
+	~stop_engine.value;
 }, '/stopEngine');
 ~rpm_handler = {|r|
 	(~engine !== nil).if({
@@ -150,6 +169,10 @@ OSCdef(\msg_honk, {|m|
 OSCdef(\msg_flash, {|m|
 	{ PlayBuf.ar(1, ~buf_flash, BufRateScale.kr(~buf_flash))!2 }.play();
 }, '/flash');
+OSCdef(\msg_gear, {|m|
+	~gear = m[1];
+	//~gear.postln;
+}, '/gear');
 
 ~control_gui2 = {|params, close_all_windows = true, close_scope = false, caption="Control GUI"| // params = [[synth, var, [range], label],...]
 	var w, slider, p, a;
@@ -175,12 +198,18 @@ OSCdef(\msg_flash, {|m|
 }.defer(0.3);
 )
 
+s.freqscope
+~start_engine.value
+~stop_engine.value
+~engine.free
+~engine_out.scope
 
 
+/// TESTING /////////////////////////////////////////////////////////////////////
 
-/// TESTING
+{Amplitude.kr(~engine_out.ar)}.scope(zoom:0.01);
 ~engine = Synth(\engine)
-~engine.set(\engineSpeed, 0)
+~engine.set(\engineSpeed, 0.1)
 
 ~rpm_handler.value
 
@@ -192,7 +221,7 @@ OSCdef(\msg_flash, {|m|
 ~engine = Synth(\engine);
 ~engine.free
 
-~engine.set(\engineSpeed, 1)
+~engine.set(\engineSpeed, 0.1)
 
 //// testing ////
 { PlayBuf.ar(2, ~buf_honk, BufRateScale.kr(~buf_honk)) }.play();
