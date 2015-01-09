@@ -10,6 +10,10 @@ s.boot;
 
 ~gear = 1; // gears from 1 to 6
 
+~fft_buf = Buffer.alloc(s, 1024, 1);
+~engine_loudness_out = Bus.control(s);
+
+
 {
 // define Engine-Synth
 SynthDef(\engine, {
@@ -131,19 +135,30 @@ SynthDef(\engine, {
 	"startEngine".postln;
 	~engine.free;
 	~engine_stream.free;
+	~engine_loudness.free;
+	~engine = Synth(\engine);
 	~engine_stream = {
 		Out.ar(0, ~engine_out.ar);
 	}.play(addAction:\addToTail);
-	~engine = Synth(\engine);
+	~engine_loudness = {
+		var fft = FFT(~fft_buf, ~engine_out.ar);
+		var sone = LPF.kr(Loudness.kr(fft), 1);
+		var phon = 40 + 10 * log2(sone);
+		Out.kr(~engine_loudness_out, phon);
+	}.play(addAction:\addToTail);
+	~set_rpm_handler.value;
 };
 ~stop_engine = {
 	"stopEngine".postln;
+	~unset_rpm_handler.value;
 	~engine.set(\engineSpeed, 0);
 	{
 		~engine.free;
 		~engine = nil;
 		~engine_stream.free;
 		~engine_stream = nil;
+		~engine_loudness.free;
+		~engine_loudness = nil;
 	}.defer(1);
 };
 // define OSC functions
@@ -162,7 +177,10 @@ OSCdef(\msg_stopEngine, {|m|
 	OSCdef(\msg_rpm, {|m|
 		~rpm_handler.value(m[1]);
 	}, '/rpm');
-}; ~set_rpm_handler.value;
+};
+~unset_rpm_handler = {
+	OSCdef(\msg_rpm, {|m|},'/rpm');
+};
 OSCdef(\msg_honk, {|m|
 	{ PlayBuf.ar(2, ~buf_honk, BufRateScale.kr(~buf_honk)) }.play();
 }, '/honk');
@@ -198,47 +216,43 @@ OSCdef(\msg_gear, {|m|
 }.defer(0.3);
 )
 
-s.freqscope
-~start_engine.value
-~stop_engine.value
-~engine.free
-~engine_out.scope
-
-
 /// TESTING /////////////////////////////////////////////////////////////////////
 
-{Amplitude.kr(~engine_out.ar)}.scope(zoom:0.01);
-~engine = Synth(\engine)
-~engine.set(\engineSpeed, 0.1)
+~start_engine.value
+~engine_loudness_out.get
+~stop_engine.value
+~engine_out.scope
 
-~rpm_handler.value
-
-(
-1.wait;
-"test".postln
-)
-
-~engine = Synth(\engine);
-~engine.free
+NetAddr.localAddr.sendMsg("/pitch_start", 0, 20)
 
 ~engine.set(\engineSpeed, 0.1)
 
-//// testing ////
-{ PlayBuf.ar(2, ~buf_honk, BufRateScale.kr(~buf_honk)) }.play();
+///////////////////////////////////////////////////////
 
 (
-~x.set(\engineSpeed, 0.1);
-OSCdef(\msg_rpm, {|m|
-	//m[1].postln;
-	~x.set(\engineSpeed, m[1]);
-}, '/rpm');
-// OSCdef(\msg_ml_sec, {|m| // range: [0-5]
-// 	//m[1].postln;
-// }, '/ml_sec');
-// OSCdef(\msg_L_100km, {|m| // range [0-40?]
-// 	//m[1].postln;
-// }, '/L_100km');
+~engine_loudness.free;
+	~engine_loudness = {
+		var fft = FFT(~fft_buf, ~engine_out.ar);
+	Out.kr(~engine_loudness_out, 0.05 * LPF.kr(Loudness.kr(fft),2));
+	}.play(addAction:\addToTail);
 )
+~engine_loudness_smoothed_out = Bus.control(s);
+(
+~engine_loudness_smoothed.free;
+~engine_loudness_smoothed = {
+	Out.kr(~engine_loudness_smoothed_out, LPF.kr(~engine_loudness_out.kr, 1));
+	//DelayL.kr(~engine_loudness_out.kr, 5, 5).scope;
+	}.play(addAction:\addToTail);
+//~engine_loudness_out.scope;
+//~engine_loudness_smoothed_out.scope;
+)
+~engine_loudness_out.get;
+~engine_loudness_smoothed_out.get
+~engine_loudness_smoothed_out.scope
+
+/////////////////////////////////////////////////////
+
+s.freqscope
 
 (
 ~control_gui2.value([
@@ -254,3 +268,5 @@ OSCdef(\msg_rpm, {|m|
 	[~x, \wguideWidth2, [0,1], "wguideWidth2"],
 ], false);
 )
+
+(200,210..10000).collect {|freq| (200/freq) ** 0.3333 };

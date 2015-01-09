@@ -6,10 +6,10 @@
 // WingMan Formula GP
 // 9: geht bei gas von 127=>0, bremse: 127=>255
 // 10&11: bei gas: 255=>0, bremse: 255=>65535
-class PedalInput
+class PedalInput2
 {
 public:
-    PedalInput() {
+    PedalInput2() {
         const std::string wingman = "WingMan Formula GP";
         hid.ScanDevices();
         int c = hid.GetDeviceCount();

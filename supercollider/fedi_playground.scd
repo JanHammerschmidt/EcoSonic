@@ -1,68 +1,39 @@
-/*b=Bus.audio(s, 2);
-SynthDef(\aa, {
-	Out.ar(~engine_out, SinOsc.ar([330,440], 0, 0.4))
-}).send(s)
-a = Synth(\engine);
-a={
-	Out.ar(~engine_out, SinOsc.ar([330,440], 0, 0.4))
-}.play //(s, b) //you won't hear this if you only have two channels
-~engine_out.scope
-{Out.ar(0, ~engine_out.ar)}.play(addAction:\addToTail)
+(
+t.free;
+t = {~bus_pitch_freq.kr.poll(1)}.play
+)
+~bus_pitch_freq.set(800)
+~bus_pitch_freq.get
+~engine_loudness_out.get
 
-{ Pulse.ar(90, 0.3, Amplitude.kr(SoundIn.ar(0))) }.play;
-
-t={|attack=3,release=3|
-	AmplitudeMod.kr(~engine_out.ar, attack, release)
-}.scope(zoom:0.01);
-{~control_gui2.value([
-		[t, \attack, [0.5,5], "attack"],
-		[t, \release, [0.5, 5], "release"],
+~ampcomp = Bus.control(s);
+(
+	~pitch_stop.value;
+~bus_pitch_freq.set(300);
+	~pitch = {|f,bw=0.1,a=0|
+	   //var f = VarLag.kr(~bus_pitch_freq.kr, 0.2);
+		var pitch_noise = a.dbamp*Resonz.ar(WhiteNoise.ar(0.5), f, bw);
+	    var engine_loudness_dbamp = (0.2 * (~engine_loudness_out.kr - 130)).dbamp;
+	var ampcomp_dbamp = (AmpComp.kr(f, 300,0.8)-0.02)*1.0204;
+		var pitch_noise_amped = pitch_noise * ampcomp_dbamp;
+     	Out.kr(~ampcomp, ampcomp_dbamp);
+		Out.ar(0, pitch_noise_amped!2)
+}.play;
+)
+~ampcomp.get
+~engine_loudness_out.get
+(
+	{~pitch_control_window = ~control_gui2.value([
+		[~pitch, \f, [300,3000], "freq"],
+		[~pitch, \bw, [0.01, 0.6], "bandwidth"],
+	[~pitch, \a, [-20,20], "ampl. (db)"],
 	], false)}.defer(0.2);
-
-
-Bus.audio(s,
-{ SinOsc.ar(MouseX.kr(300, 15000, 1)) * 0.1 }.play;
-(
-{
-    var freq;
-    freq = MouseX.kr(300, 15000, 1);
-    SinOsc.ar(freq) * 0.1 * AmpComp.kr(freq, 300)
-}.play;
 )
-(200,210..10000).collect {|freq| (200/freq) ** 0.3333 }.plot;
 
-(
-// use input amplitude to control SinOsc frequency
-{
-    SinOsc.ar(
-            Amplitude.kr(
-                        Blip.ar(3, 20) * LFNoise1.kr(0.1).range(0, 1),
-                        MouseX.kr(0.001, 1, 1),
-                        MouseY.kr(0.001, 1, 1),
-                        1200,
-                        400
-            ),
-            0, 0.3)
-}.play;
-)
-~test = Bus.audio(s, 2);
-~k = {|v=1| Out.ar(~test, {v*SinOsc.ar(300)}!2)}.play
-~amp_test = Bus.control(s)
-{Out.kr(~amp_test, Amplitude.kr(~engine_out.ar, 0.5, 0.5, 1, 0))}.play
-~amp_test.getSynchronous(s)
-	~engine_out.scope()
-{Amplitude.kr(~test.ar, 0.5, 0.5, 1, 0)}.scope
-~k.free
+(300,310..3000).collect {|freq| (((350/freq) ** 0.9)-0.05)*1.0526 }.plot;
+(200,210..3000).collect {|freq| (200/freq) ** 0.33 }.plot;
 
-{Amplitude.kr(Out.ar(0), 0.5, 0.5, 1200, 10)}.plot
-
-~fedi_stream.get(\db, {|v| v.postln})
-~fedi_stream.set(\db, -1)
-~t1 = 10; ~t2 = 20;
-"vol:"+(~t1+~t2).postln
-~fedi_stream_vol_add.value(-1)
-~fedi_stream.get(\db, {|v| ~fedi_stream.set(\db, v-1); ("vol:"+(v-1)).postln});
-*/
+///////////////////////////////////////////////////////////////////////
 
 (
 // main output bus for volume control
@@ -129,6 +100,8 @@ OSCdef(\msg_slurp_stop, {|m|
 
 
 // map fuel consumption on pitched noise
+~bus_pitch_freq = Bus.control(s);
+
 ~pitch_stop = {
 	~pitch = ~free_synth.value(~pitch);
 	~pitch_control_window = ~close_window.value(~pitch_control_window);
@@ -153,10 +126,20 @@ OSCdef(\msg_pitch_stop, {|m|
 OSCdef(\msg_pitch_start, {|m|
 	"pitch_start".postln;
 	~pitch_stop.value;
-	~pitch = {|f=300,bw=0.1,a=1| Out.ar(~fedi_out, {a*Resonz.ar(WhiteNoise.ar(0.5), f, bw)}!2)}.play;
+	~pitch = {|bw=0.1,a=0.8|
+		var f = VarLag.kr(~bus_pitch_freq.kr, 0.2);
+		var pitch_noise = a * Resonz.ar(WhiteNoise.ar(0.5), f, bw);
+	    var engine_loudness_dbamp = (0.2 * (~engine_loudness_out.kr - 130)).dbamp;
+		var ampcomp_dbamp = (AmpComp.kr(f, 300,0.8)-0.02)*1.0204;
+		var pitch_noise_amped = pitch_noise /* * engine_loudness_dbamp*/ * ampcomp_dbamp;
+		~bus_pitch_freq.set(300);
+		Out.ar(~fedi_out, pitch_noise_amped!2)
+	}.play;
 	OSCdef(\msg_L_100km, {|m| // range [0-40?]
 		if(m[1].isNaN.not && (m[1] != inf) && (~pitch != nil), {
-			~pitch.set(\f, m[1].linlin(0,40,300,3000));
+			//~pitch.set(\f, ..);
+			m[1].postln;
+			~bus_pitch_freq.set(m[1].linlin(0,40,300,3000));
 		});
 	}, '/L_100km');
 	~pitch_show_controls_osc.value;
