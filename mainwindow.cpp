@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "hudwindow.h"
 #include "engine.h"
 
 Track::Images Track::images;
@@ -172,7 +173,20 @@ void MainWindow::on_actionOpen_Log_triggered()
     }
 }
 
-void MainWindow::on_track_prune_points_clicked()
-{
 
+void MainWindow::on_hud_toggle_clicked()
+{
+    QCarViz& car_viz = *ui->car_viz;
+    if (car_viz.hud_window.get() == nullptr) {
+        car_viz.hud_window.reset(new HUDWindow());
+        HUDWindow& hw = *car_viz.hud_window.get();
+        QDesktopWidget d;
+        if (d.screenCount() == 2) {
+            QRect r1 = d.availableGeometry(0);
+            hw.move(r1.center() - QPoint(hw.width() / 2, 0));
+        }
+        hw.show();
+    } else {
+        car_viz.hud_window.reset();
+    }
 }

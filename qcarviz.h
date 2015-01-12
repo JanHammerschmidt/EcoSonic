@@ -26,6 +26,7 @@
 #include "misc.h"
 #include "track.h"
 #include "car.h"
+#include "hudwindow.h"
 
 #define DEFAULT_SPEED_LIMIT 300 // kmh
 
@@ -65,6 +66,8 @@ public:
     }
 
     bool load_log(const QString filename);
+
+    std::auto_ptr<HUDWindow> hud_window;
 
 public slots:
     void stop(bool temporary_stop = false) {

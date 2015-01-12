@@ -4,6 +4,8 @@
 #include <type_traits>
 #include <QTextStream>
 #include <QTime>
+#include <QPainter>
+#include <math.h>
 
 struct Speedometer {
     void draw(QPainter& painter, const QPointF pos, const qreal kmh)

@@ -240,6 +240,7 @@ void QCarViz::draw(QPainter& painter)
 {
     if (flash_timer.elapsed() < 100)
         return;
+    QTransform t;
     const qreal current_percent = track_path.percentAtLength(current_pos);
     const qreal car_x_pos = 50;
 
@@ -257,19 +258,23 @@ void QCarViz::draw(QPainter& painter)
     // draw remaining time
     TimeDisplay::draw(painter, {10,30}, track.max_time, time_delta.get_elapsed() - track_started_time, track_started);
 
+    const bool hud_external = hud_window.get() != nullptr;
 
     // draw the HUD speedometer & revcounter
-    QTransform t;
-    t.translate(0, 0.75 * height() - 0.5 * hud.height);
-    painter.setTransform(t);
-    hud.draw(painter, width(), car->engine.rpm(), Gearbox::speed2kmh(car->speed), consumption_monitor.liters_used); //, track.max_time, time_delta.get_elapsed() - track_started_time, track_started);
-
+    if (hud_external) {
+        QHudWidget& hw = hud_window->hud_widget();
+        hw.update_hud(&hud, car->engine.rpm(), Gearbox::speed2kmh(car->speed), consumption_monitor.liters_used);
+    } else {
+        t.translate(0, 0.75 * height() - 0.5 * hud.height);
+        painter.setTransform(t);
+        hud.draw(painter, width(), car->engine.rpm(), Gearbox::speed2kmh(car->speed), consumption_monitor.liters_used); //, track.max_time, time_delta.get_elapsed() - track_started_time, track_started);
+    }
     // draw the road
     painter.setPen(QPen(Qt::black, 1));
     //painter.drawLine(0, height()/2, width(), height()/2);
     painter.setBrush(Qt::NoBrush);
     QTransform t0;
-    t0.translate(0, -height()/2);
+    t0.translate(0, (hud_external ? -0.25 : -0.5) * height());
     t = t0;
     t.translate(car_x_pos - cur_p.x(),0);
     painter.setTransform(t);
@@ -296,10 +301,11 @@ void QCarViz::draw(QPainter& painter)
     //printf("%s ", show_arrow == Arrow::None ? "None" : (show_arrow == Arrow::Left ? "Left" : "Right"));
     if (show_arrow != Arrow::None) {
         //printf("draw ");
-        t = t0;
-#define DRAW_ARROW_SIGN 0
+        //t = t0;
+        t.reset();
+#define DRAW_ARROW_SIGN 1
 #if DRAW_ARROW_SIGN
-        t.translate(car_x_pos - 0.5 * turn_sign_rect.width(), cur_p.y() - car_height - turn_sign_rect.height() - 10);
+        t.translate(0.5 * (width() - turn_sign_rect.width()), 20);
         if (show_arrow == Arrow::Left) {
             t.scale(-1,1);
             t.translate(-turn_sign_rect.width(),0);

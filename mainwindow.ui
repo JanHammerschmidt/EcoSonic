@@ -823,16 +823,6 @@ Sign</string>
       <item>
        <layout class="QVBoxLayout" name="verticalLayout_3">
         <item alignment="Qt::AlignHCenter">
-         <widget class="QSlider" name="clutch">
-          <property name="maximum">
-           <number>100</number>
-          </property>
-          <property name="orientation">
-           <enum>Qt::Vertical</enum>
-          </property>
-         </widget>
-        </item>
-        <item alignment="Qt::AlignHCenter">
          <widget class="QSlider" name="breaking">
           <property name="maximum">
            <number>100</number>
@@ -843,6 +833,13 @@ Sign</string>
          </widget>
         </item>
        </layout>
+      </item>
+      <item>
+       <widget class="QPushButton" name="hud_toggle">
+        <property name="text">
+         <string>HUD</string>
+        </property>
+       </widget>
       </item>
      </layout>
     </item>

@@ -60,7 +60,7 @@ private slots:
 
     void on_actionOpen_Log_triggered();
 
-    void on_track_prune_points_clicked();
+    void on_hud_toggle_clicked();
 
 private:
     Ui::MainWindow *ui;

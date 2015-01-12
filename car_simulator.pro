@@ -41,7 +41,9 @@ SOURCES += main.cpp\
     qtrackeditor.cpp \
     lib/HID/HID.cpp \
     qcarviz.cpp \
-    car.cpp
+    car.cpp \
+    hudwindow.cpp \
+    qhudwidget.cpp
 
 HEADERS  += mainwindow.h \
     engine.h \
@@ -76,6 +78,9 @@ HEADERS  += mainwindow.h \
     misc.h \
     KeyboardInput.h \
     logging.h \
-    wingman_input.h
+    wingman_input.h \
+    hudwindow.h \
+    qhudwidget.h
 
-FORMS    += mainwindow.ui
+FORMS    += mainwindow.ui \
+    hudwindow.ui

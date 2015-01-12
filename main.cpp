@@ -1,5 +1,7 @@
 #include "mainwindow.h"
+#include "hudwindow.h"
 #include <QApplication>
+#include <QDesktopWidget>
 //#include <HID.h>
 //#include <PedalInput.h>
 
@@ -69,8 +71,22 @@ int main(int argc, char *argv[])
 
     QApplication a(argc, argv);
     QDir::setCurrent("../../../../car_simulator");
+
     MainWindow w;
+    //HUDWindow hw;
+
+    QDesktopWidget d;
+    int c = d.screenCount();
+    if (c == 2) {
+        //QRect r = d.availableGeometry();
+        //QRect r1 = d.availableGeometry(0);
+        QRect r2 = d.availableGeometry(1);
+        w.move(r2.center() - QPoint(w.width() / 2, 0)); //, w.height() / 2));
+        //hw.move(r1.center() - QPoint(hw.width() / 2, 0)); //, hw.height() / 2));
+    }
+
     w.show();
+    //hw.show();
 
     return a.exec();
 }
