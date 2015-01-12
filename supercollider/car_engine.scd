@@ -13,7 +13,6 @@ s.boot;
 ~fft_buf = Buffer.alloc(s, 1024, 1);
 ~engine_loudness_out = Bus.control(s);
 
-
 {
 // define Engine-Synth
 SynthDef(\engine, {

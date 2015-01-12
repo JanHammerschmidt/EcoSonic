@@ -148,7 +148,7 @@ struct ConsumptionDisplay {
 };
 
 struct TimeDisplay {
-    void draw(QPainter& painter, QPointF pos, int max_time, qreal time_elapsed, bool track_started, bool draw_remaining = true)
+    static void draw(QPainter& painter, QPointF pos, int max_time, qreal time_elapsed, bool track_started, bool draw_remaining = true)
     {
         Q_ASSERT(draw_remaining == true);
         if (track_started || draw_remaining) {
@@ -170,7 +170,7 @@ struct HUD {
     TimeDisplay time_display;
     qreal l_100km = 0;
     bool draw_consumption = true;
-    void draw(QPainter& painter, const qreal width, const qreal rpm, const qreal kmh, const qreal liters_used, int max_time, qreal time_elapsed, bool track_started) {
+    void draw(QPainter& painter, const qreal width, const qreal rpm, const qreal kmh, const qreal liters_used) { //, int max_time, qreal time_elapsed, bool track_started) {
         const qreal gap = 15;
         const qreal mid = width / 2.;
         rev_counter.draw(painter, QPointF(mid - rev_counter.radius - gap, rev_counter.radius + gap), 0.01 * rpm);
@@ -178,9 +178,9 @@ struct HUD {
         consumption_display.draw(painter, QPointF(mid, 180), l_100km, kmh >= 5);
         if (draw_consumption) {
             trip_consumption.draw(painter, QPointF(mid, 25), liters_used * 10);
-            time_display.draw(painter, {10,30}, max_time, time_elapsed, track_started);
         }
     }
+    const qreal height = 230;
 };
 
 #endif

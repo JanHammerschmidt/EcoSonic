@@ -116,7 +116,7 @@ protected:
 
     void fill_trees() {
         trees.clear();
-        const qreal first_distance = 40; // distance from starting position of the car!
+        const qreal first_distance = 40; // distance from starting position of the car
         const qreal track_length = track_path.boundingRect().width();
         std::uniform_int_distribution<int> tree_type(0,tree_types.size()-1);
         std::uniform_real_distribution<qreal> dist(5,50); // distance between the trees
@@ -214,6 +214,8 @@ protected:
         Right,
         Left,
     } show_arrow = None;
+    qreal turn_sign_length = 0;
+    qreal current_turn_sign_length = 0;
 };
 
 

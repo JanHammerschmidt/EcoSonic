@@ -138,7 +138,7 @@ OSCdef(\msg_pitch_start, {|m|
 	OSCdef(\msg_L_100km, {|m| // range [0-40?]
 		if(m[1].isNaN.not && (m[1] != inf) && (~pitch != nil), {
 			//~pitch.set(\f, ..);
-			m[1].postln;
+			//m[1].postln;
 			~bus_pitch_freq.set(m[1].linlin(0,40,300,3000));
 		});
 	}, '/L_100km');
