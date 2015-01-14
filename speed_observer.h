@@ -12,6 +12,47 @@
 #define MAX_TOO_SLOW 3000 // ms
 #define COOLDOWN_TIME 3000 // how long "nothing" happens after a honking (ms)
 
+struct TurnSignObserver {
+    TurnSignObserver(QCarViz& carViz)
+        : track(carViz.track), carViz(carViz)
+    {
+        find_next_sign();
+    }
+
+    void tick() {
+        if (!next_sign)
+            return;
+        const qreal current_pos = carViz.current_pos;
+        if (current_pos > next_sign->at_length) {
+            carViz.trigger_arrow(next_sign->type == Track::Sign::TurnLeft ? QCarViz::Arrow::Left : QCarViz::Arrow::Right);
+            find_next_sign();
+        }
+    }
+    void find_next_sign() {
+        printf("find next sign!\n");
+        if (!track.signs.size())
+            return;
+        if (!next_sign)
+            next_sign = &track.signs[0];
+        else
+            next_sign++;
+        for ( ; ; next_sign++) {
+            if (next_sign > &track.signs.last()) {
+                next_sign = nullptr;
+                break;
+            }
+            if (next_sign->type == Track::Sign::TurnLeft || next_sign->type == Track::Sign::TurnRight)
+                break;
+        }
+    }
+
+    inline void reset() { find_next_sign(); }
+
+    Track::Sign* next_sign = nullptr;
+    Track& track;
+    QCarViz& carViz;
+};
+
 struct SpeedObserver {
     SpeedObserver(QCarViz& carViz, OSCSender& osc)
         : track(carViz.track), carViz(carViz), osc(osc)
@@ -42,7 +83,8 @@ struct SpeedObserver {
                 if (s.at_length - current_pos > NEXT_SIGN_DISTANCE)
                     break;
                 if ((s.type == Track::Sign::TrafficLight && s.traffic_light_state == Track::Sign::Green) // green traffic lights
-                    || (s.is_speed_sign() && current_speed_sign && s.type > current_speed_sign->type)) // faster speed sign
+                    || (s.is_speed_sign() && current_speed_sign && s.type > current_speed_sign->type) // faster speed sign
+                    || (s.is_turn_sign()))
                 {
                         continue; // skip!
                 }
@@ -50,7 +92,7 @@ struct SpeedObserver {
                 break;
             } else if (s.is_speed_sign()) {
                 current_speed_sign = &s;
-            } else
+            } else if (!s.is_turn_sign())
                 current_hold_sign = &s;
         }
         current_speed_limit = current_speed_sign ? current_speed_sign->speed_limit() : DEFAULT_SPEED_LIMIT;
@@ -80,6 +122,7 @@ struct SpeedObserver {
                 && !(current_hold_sign->type == Track::Sign::TrafficLight && current_hold_sign->traffic_light_state != Track::Sign::Red)
                 && current_pos - current_hold_sign->at_length > 10)
         {
+            printf("stop sign / traffic light!\n");
             osc.send_float("/flash", 0);
             carViz.flash_timer.start();
             cooldown_timer.start();
@@ -88,6 +131,7 @@ struct SpeedObserver {
         if (toofast) {
             if (state == too_fast) {
                 if (last_state_change.elapsed() > MAX_TOO_FAST) {
+                    printf("too fast!\n");
                     osc.send_float("/flash", 0);
                     carViz.flash_timer.start();
                     cooldown_timer.start();

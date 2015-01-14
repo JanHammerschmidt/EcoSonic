@@ -33,6 +33,7 @@
 static std::mt19937_64 rng(std::random_device{}());
 
 struct SpeedObserver;
+struct TurnSignObserver;
 
 class QCarViz : public QWidget
 {
@@ -40,6 +41,7 @@ class QCarViz : public QWidget
 
 public:
     friend struct SpeedObserver;
+    friend struct TurnSignObserver;
     QCarViz(QWidget *parent = 0);
 
     void init(Car* car, QPushButton* start_button, QSlider* throttle, QSlider* breaking, QSpinBox* gear, QMainWindow* main_window, OSCSender* osc, bool start = true);
@@ -117,6 +119,12 @@ protected slots:
 
 protected:
 
+    enum Arrow {
+        None,
+        Right,
+        Left,
+    } show_arrow = None;
+
     void fill_trees() {
         trees.clear();
         const qreal first_distance = 40; // distance from starting position of the car
@@ -145,6 +153,17 @@ protected:
         painter.begin(&generator);
         draw(painter);
         painter.end();
+    }
+
+    void trigger_arrow(Arrow direction = Arrow::None) {
+        if (direction == Arrow::None) {
+            std::uniform_int_distribution<int> dir(0,1);
+            show_arrow = dir(rng) == 0 ? Arrow::Left : Arrow::Right;
+        } else
+            show_arrow = direction;
+        std::uniform_real_distribution<qreal> length(1,2); // seconds
+        turn_sign_length = current_turn_sign_length = length(rng); // these are seconds!
+        //printf("%s\n", show_arrow == Arrow::None ? "None" : (show_arrow == Arrow::Left ? "Left" : "Right"));
     }
 
     void draw(QPainter& painter);
@@ -187,6 +206,7 @@ protected:
     QImage car_img;
     Track track;
     std::auto_ptr<SpeedObserver> speedObserver;
+    std::auto_ptr<TurnSignObserver> turnSignObserver;
     TimeDelta time_delta;
     Car* car;
     QPainterPath track_path;
@@ -212,11 +232,6 @@ protected:
     int replay_index = 0;
     std::auto_ptr<QSvgRenderer> turn_sign;
     QRectF turn_sign_rect;
-    enum Arrow {
-        None,
-        Right,
-        Left,
-    } show_arrow = None;
     qreal turn_sign_length = 0;
     qreal current_turn_sign_length = 0;
 };

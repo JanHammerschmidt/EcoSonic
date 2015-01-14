@@ -95,6 +95,8 @@ struct Track {
             Speed120,
             Speed130,
             TrafficLight,
+            TurnLeft,
+            TurnRight,
             __length
         };
         enum TrafficLightState {
@@ -107,6 +109,9 @@ struct Track {
         struct TrafficLightInfo {
             qreal trigger_distance = 500; //200;
             std::pair<qreal,qreal> time_range = {7000,7000}; //{3000,3000}; //{0,3000};
+        };
+        struct TurningInfo {
+
         };
         Sign() {}
         Sign(const Type type, const qreal at_length) : type(type), at_length(at_length) {}
@@ -124,6 +129,8 @@ struct Track {
             return true;
         }
         bool draw(QPainter& painter, QPainterPath& path, bool editor = false) {
+            if (!editor && (type == TurnLeft || type == TurnRight))
+                return false;
             QRectF pos, pole_pos;
             if (!get_position(pos, pole_pos, path))
                 return false;
@@ -150,6 +157,7 @@ struct Track {
             }
             return true;
         }
+        bool is_turn_sign() const { return type == TurnLeft || type == TurnRight; }
         bool is_speed_sign() const { return type >= Speed30 && type <= Speed130; }
         qreal speed_limit() const { Q_ASSERT(is_speed_sign()); return 30 + (type - Speed30) * 10; }
 
@@ -212,6 +220,9 @@ struct Track {
             traffic_light_images[Sign::Yellow].load("media/signs/traffic_yellow.svg", "", 0.07);
             traffic_light_images[Sign::Green].load("media/signs/traffic_green.svg", "", 0.07);
             sign_images[Sign::TrafficLight].name = "Traffic Light";
+            //printf("%i %i\n", Sign::Type::TurnRight, sign_images.size());
+            sign_images[Sign::TurnRight].load("media/signs/turn_right.svg", "right turn", 0.03);
+            sign_images[Sign::TurnLeft].load("media/signs/turn_left.svg", "left turn", 0.03);
         }
     };
     static Images images;

@@ -23,7 +23,11 @@ void QHudWidget::update_hud(HUD* hud, const qreal rpm, const qreal kmh, const qr
 void QHudWidget::draw(QPainter& painter) {
     if (!hud)
         return;
-    hud->draw(painter, width(), rpm, kmh, liters_used);
+    const qreal scale = 1.5;
+    QTransform t;
+    t.scale(scale, scale);
+    painter.setTransform(t);
+    hud->draw(painter, width() / scale, rpm, kmh, liters_used);
 }
 
 void QHudWidget::paintEvent(QPaintEvent *) {

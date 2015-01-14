@@ -35,6 +35,7 @@ void QCarViz::init(Car* car, QPushButton* start_button, QSlider* throttle, QSlid
     breaking_slider = breaking;
     gear_spinbox = gear;
     speedObserver.reset(new SpeedObserver(*this, *osc));
+    turnSignObserver.reset(new TurnSignObserver(*this));
     QObject::connect(start_button, SIGNAL(clicked()),
                      this, SLOT(start_stop()));
     keyboard_input.init(main_window);
@@ -82,6 +83,7 @@ void QCarViz::prepare_track() {
     track.prepare_track();
     update_track_path(height());
     speedObserver->tick();
+    turnSignObserver->reset();
     fill_trees();
 }
 
@@ -123,11 +125,7 @@ bool QCarViz::tick() {
             gear_spinbox->setValue(car->gearbox.get_gear()+1);
         }
         if (keyboard_input.show_arrow()) {
-            std::uniform_int_distribution<int> direction(0,1);
-            std::uniform_real_distribution<qreal> length(1,2); // seconds
-            show_arrow = direction(rng) == 0 ? Arrow::Left : Arrow::Right;
-            turn_sign_length = current_turn_sign_length = length(rng); // these are seconds!
-            //printf("%s\n", show_arrow == Arrow::None ? "None" : (show_arrow == Arrow::Left ? "Left" : "Right"));
+            trigger_arrow();
         }
         if ((show_arrow == Arrow::Left && keyboard_input.keys_pressed.contains(Qt::Key_O))
                 || (show_arrow == Arrow::Right && keyboard_input.keys_pressed.contains(Qt::Key_P)))
@@ -195,7 +193,8 @@ bool QCarViz::tick() {
         }
     }
 
-    const qreal alpha = !track_path.length() ? 0 : atan(-track_path.slopeAtPercent(track_path.percentAtLength(current_pos))); // slope [rad]
+    const qreal alpha_scale = 0.8;
+    const qreal alpha = !track_path.length() ? 0 : (alpha_scale * atan(-track_path.slopeAtPercent(track_path.percentAtLength(current_pos)))); // slope [rad]
     Q_ASSERT(!isnan(alpha));
     car->tick(dt, alpha, replay);
     if (track_started) {
@@ -230,6 +229,7 @@ bool QCarViz::tick() {
             car->braking = breaking_slider->value() / 100.;
         }
         speedObserver->tick();
+        turnSignObserver->tick();
         emit slow_tick(elapsed - last_elapsed, elapsed, consumption_monitor);
         last_elapsed = elapsed;
     }
