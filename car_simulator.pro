@@ -16,13 +16,16 @@ TEMPLATE = app
 
 LIBS += -framework IOKit
 LIBS += -framework CoreFoundation
+LIBS += -L/Users/jhammers/boost_1_57_0/stage/lib -lboost_thread -lboost_system
 
 DEPENDPATH += . \
     ./include
 INCLUDEPATH += . \
     ./include \
     ./lib/oscpack_1_1_0 \
-    ./lib/HID
+    ./lib/HID \
+    ./lib/eyetribe/include \
+    /Users/jhammers/boost_1_57_0
 
 CONFIG += c++11 #precompile_header
 #PRECOMPILED_HEADER = stable.h
@@ -43,7 +46,10 @@ SOURCES += main.cpp\
     qcarviz.cpp \
     car.cpp \
     hudwindow.cpp \
-    qhudwidget.cpp
+    qhudwidget.cpp \
+    lib/eyetribe/src/gazeapi.cpp \
+    lib/eyetribe/src/gazeapi_socket.cpp \
+    lib/eyetribe/src/gazeapi_parser.cpp
 
 HEADERS  += mainwindow.h \
     engine.h \
@@ -80,7 +86,13 @@ HEADERS  += mainwindow.h \
     logging.h \
     wingman_input.h \
     hudwindow.h \
-    qhudwidget.h
+    qhudwidget.h \
+    lib/eyetribe/src/gazeapi_observable.hpp \
+    lib/eyetribe/src/gazeapi_parser.hpp \
+    lib/eyetribe/src/gazeapi_socket.hpp \
+    lib/eyetribe/include/gazeapi_types.h \
+    lib/eyetribe/include/gazeapi.h \
+    lib/eyetribe/include/gazeapi_interfaces.h
 
 FORMS    += mainwindow.ui \
     hudwindow.ui
