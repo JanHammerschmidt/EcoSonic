@@ -1,7 +1,23 @@
 #ifndef WINGMAN_INPUT_H
 #define WINGMAN_INPUT_H
 
+#ifdef NO_HID
+struct WingmanInput
+{
+	bool update() { return false; }
+	double gas() { return 0; }
+	double brake() { return 0; }
+	bool update_buttons() { return false; }
+	bool left_click() { return false; }
+	bool right_click() { return false; }
+	bool update_wheel() { return false; }
+	bool steering_left() { return false; }
+	bool steering_right() { return false; }
 
+
+	bool valid() { return false; }
+};
+#else
 #include <HID.h>
 
 // WingMan Formula GP
@@ -95,5 +111,7 @@ protected:
     bool left_button_click = false;
     bool right_button_click = false;
 };
+
+#endif // NO_HID
 
 #endif // WINGMAN_INPUT_H

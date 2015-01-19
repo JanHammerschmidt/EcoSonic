@@ -1,3 +1,4 @@
+#include "stdafx.h"
 #include "qcarviz.h"
 #include "speed_observer.h"
 #include "logging.h"
@@ -204,8 +205,9 @@ bool QCarViz::tick() {
         car->speed = 0;
     }
     current_pos += car->speed * dt * 3;
-    if (current_pos >= track_path.length() && !replay) {
+    if (!replay && track_path.length() > initial_pos && current_pos >= track_path.length()) {
         stop();
+		Q_ASSERT(car->log != nullptr);
         car->log->elapsed_time = time_delta.get_elapsed() - track_started_time;
         car->log->liters_used = consumption_monitor.liters_used;
         car->log->sound_modus = sound_modus;
@@ -297,40 +299,6 @@ void QCarViz::draw(QPainter& painter)
     painter.setTransform(t);
     painter.drawImage(QRectF(0,0, car_width, car_height), car_img);
 
-    // draw an arrow
-    //printf("%s ", show_arrow == Arrow::None ? "None" : (show_arrow == Arrow::Left ? "Left" : "Right"));
-    if (show_arrow != Arrow::None) {
-        //printf("draw ");
-        //t = t0;
-        t.reset();
-#define DRAW_ARROW_SIGN 1
-#if DRAW_ARROW_SIGN
-        t.translate(0.5 * (width() - turn_sign_rect.width()), 20);
-        if (show_arrow == Arrow::Left) {
-            t.scale(-1,1);
-            t.translate(-turn_sign_rect.width(),0);
-        }
-#else
-        t.translate(car_x_pos, cur_p.y() - car_height - 10);
-#endif
-        painter.setTransform(t);
-        painter.setOpacity(current_turn_sign_length / turn_sign_length);
-#if DRAW_ARROW_SIGN
-        turn_sign->render(&painter, turn_sign_rect);
-#else
-        const qreal mult = (show_arrow == Arrow::Left) ? -1 : 1;
-        const qreal head_x = current_turn_sign_length * mult * 10;
-        const QPointF head(head_x, 0);
-//        painter.drawPoint(QPointF(0,0));
-//        painter.drawPoint(head);
-        painter.setPen(QPen(Qt::black, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-        painter.drawLine(QPointF(0,0), head);
-        painter.drawLine(QPointF(head_x - 5*mult, -5), head);
-        painter.drawLine(QPointF(head_x - 5*mult, +5), head);
-#endif
-        painter.setOpacity(1.0);
-    }
-
     // draw the trees in the foreground
     t = t0;
     t.translate(car_x_pos - cur_p.x(),0);
@@ -343,5 +311,57 @@ void QCarViz::draw(QPainter& painter)
             continue;
         QPointF tree_pos(tree_x, track_bottom);
         tree_types[tree.type].draw_scaled(painter, tree_pos, Gearbox::speed2kmh(car->speed), tree.scale);
+    }
+
+    // draw an arrow
+    //printf("%s ", show_arrow == Arrow::None ? "None" : (show_arrow == Arrow::Left ? "Left" : "Right"));
+    if (show_arrow != Arrow::None) {
+        //printf("draw ");
+        //t = t0;
+        t.reset();
+#define DRAW_ARROW_SIGN 2 // 0: simple arrow 1: arrow sign 2: "street"-arrow
+#if (DRAW_ARROW_SIGN==1)
+        t.translate(0.5 * (width() - turn_sign_rect.width()), 20);
+        if (show_arrow == Arrow::Left) {
+            t.scale(-1,1);
+            t.translate(-turn_sign_rect.width(),0);
+        }
+#elif (DRAW_ARROW_SIGN==2)
+        t.translate(0.5 * width(), 20);
+#else
+        t.translate(car_x_pos, cur_p.y() - car_height - 10);
+#endif
+        painter.setTransform(t);
+        painter.setOpacity(current_turn_sign_length / turn_sign_length);
+#if (DRAW_ARROW_SIGN==1)
+        turn_sign->render(&painter, turn_sign_rect);
+#elif (DRAW_ARROW_SIGN==2)
+        const qreal scale = 60;
+        const qreal alpha = ((show_arrow == Arrow::Left) ? 1 : -1) * (current_turn_sign_length / turn_sign_length);
+        const qreal a = 0.5*M_PI + alpha;
+        QPointF top(cos(a), 1 - sin(a)); top *= scale;
+        QPointF left(-0.4, 1); left *= scale;
+        QPointF right(0.4, 1); right *= scale;
+        QPointF mid(0, 1 * scale);
+        painter.drawLine(top, left);
+        painter.drawLine(top, right);
+        QPainterPath p; p.moveTo(top); p.lineTo(left); p.lineTo(right); p.lineTo(top);
+        painter.fillPath(p, Qt::gray);
+        QPen pen(Qt::white);
+        pen.setStyle(Qt::DashLine);
+        painter.setPen(pen);
+        painter.drawLine(top, mid);
+#else
+        const qreal mult = (show_arrow == Arrow::Left) ? -1 : 1;
+        const qreal head_x = current_turn_sign_length * mult * 10;
+        const QPointF head(head_x, 0);
+//        painter.drawPoint(QPointF(0,0));
+//        painter.drawPoint(head);
+        painter.setPen(QPen(Qt::black, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        painter.drawLine(QPointF(0,0), head);
+        painter.drawLine(QPointF(head_x - 5*mult, -5), head);
+        painter.drawLine(QPointF(head_x - 5*mult, +5), head);
+#endif
+        painter.setOpacity(2.0);
     }
 }

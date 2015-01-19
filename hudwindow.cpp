@@ -1,3 +1,4 @@
+#include "stdafx.h"
 #include "hudwindow.h"
 #include "ui_hudwindow.h"
 

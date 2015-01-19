@@ -4,6 +4,7 @@
 #include "engine.h"
 #include "gearbox.h"
 #include "resistances.h"
+#include <memory>
 
 struct Log;
 

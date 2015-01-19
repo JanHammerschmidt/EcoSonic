@@ -1,3 +1,4 @@
+#include "stdafx.h"
 #include "qhudwidget.h"
 #include "hud.h"
 

@@ -1,3 +1,4 @@
+#include "stdafx.h"
 #include <QDateTime>
 #include "car.h"
 #include "logging.h"

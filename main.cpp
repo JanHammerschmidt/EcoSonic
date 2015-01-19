@@ -1,3 +1,4 @@
+#include "stdafx.h"
 #include "mainwindow.h"
 #include "hudwindow.h"
 #include <QApplication>
@@ -123,6 +124,7 @@ protected:
 
 int main(int argc, char *argv[])
 {
+
 //    PedalInput pedal_input;
 //    if (pedal_input.valid())
 //        printf("found!\n");
@@ -203,7 +205,7 @@ int main(int argc, char *argv[])
 //    return a.exec();
 
 
-    QDir::setCurrent("../../../../car_simulator");
+    QDir::setCurrent("/Users/jhammers/Dropbox/Eigene Dateien/phd/code/car_simulator/");
 
     MainWindow w;
     //HUDWindow hw;
@@ -214,7 +216,7 @@ int main(int argc, char *argv[])
         //QRect r = d.availableGeometry();
         //QRect r1 = d.availableGeometry(0);
         QRect r2 = d.availableGeometry(1);
-        w.move(r2.center() - QPoint(w.width() / 2, 0)); //, w.height() / 2));
+        //w.move(r2.center() - QPoint(w.width() / 2, 0)); //, w.height() / 2));
         //hw.move(r1.center() - QPoint(hw.width() / 2, 0)); //, hw.height() / 2));
     }
 

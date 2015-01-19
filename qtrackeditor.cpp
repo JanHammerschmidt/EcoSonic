@@ -1,3 +1,4 @@
+#include "stdafx.h"
 #include "qtrackeditor.h"
 
 void QTrackEditor::paintEvent(QPaintEvent *)

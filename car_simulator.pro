@@ -27,8 +27,8 @@ INCLUDEPATH += . \
     ./lib/eyetribe/include \
     /Users/jhammers/boost_1_57_0
 
-CONFIG += c++11 #precompile_header
-#PRECOMPILED_HEADER = stable.h
+CONFIG += c++11 precompile_header
+PRECOMPILED_HEADER = stdafx.h
 
 SOURCES += main.cpp\
         mainwindow.cpp \
@@ -49,7 +49,8 @@ SOURCES += main.cpp\
     qhudwidget.cpp \
     lib/eyetribe/src/gazeapi.cpp \
     lib/eyetribe/src/gazeapi_socket.cpp \
-    lib/eyetribe/src/gazeapi_parser.cpp
+    lib/eyetribe/src/gazeapi_parser.cpp \
+    hud.cpp
 
 HEADERS  += mainwindow.h \
     engine.h \
@@ -67,7 +68,6 @@ HEADERS  += mainwindow.h \
     lib/oscpack_1_1_0/ip/PacketListener.h \
     lib/oscpack_1_1_0/ip/TimerListener.h \
     lib/oscpack_1_1_0/ip/UdpSocket.h \
-    stable.h \
     consumption_map.h \
     torque_map.h \
     gearbox.h \
@@ -92,7 +92,8 @@ HEADERS  += mainwindow.h \
     lib/eyetribe/src/gazeapi_socket.hpp \
     lib/eyetribe/include/gazeapi_types.h \
     lib/eyetribe/include/gazeapi.h \
-    lib/eyetribe/include/gazeapi_interfaces.h
+    lib/eyetribe/include/gazeapi_interfaces.h \
+    stdafx.h
 
 FORMS    += mainwindow.ui \
     hudwindow.ui

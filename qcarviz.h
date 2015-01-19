@@ -17,7 +17,6 @@
 #include <QShortcut>
 #include <QMainWindow>
 #include <QSvgGenerator>
-#include <QSound>
 #include <random>
 #include "hud.h"
 #include "qtrackeditor.h"

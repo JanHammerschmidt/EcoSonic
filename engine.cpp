@@ -1,3 +1,4 @@
+#include "stdafx.h"
 #include "engine.h"
 #include "gearbox.h"
 #include "car.h"
