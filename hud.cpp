@@ -1,8 +1,8 @@
 #include "stdafx.h"
 #include "hud.h"
 
-const std::array<QFont, 3> ConsumptionDisplay::fonts = { { QFont{ "Eurostile", 18, QFont::Bold }, QFont{ "Eurostile", 12, QFont::Bold }, QFont{ "Eurostile", 8, QFont::Bold } } };
-const QFontMetrics ConsumptionDisplay::font_metrics[3] = { QFontMetrics(fonts[0]), QFontMetrics(fonts[1]), QFontMetrics(fonts[2]) };
+//const std::array<QFont, 3> ConsumptionDisplay::fonts = { { QFont{ "Eurostile", 18, QFont::Bold }, QFont{ "Eurostile", 12, QFont::Bold }, QFont{ "Eurostile", 8, QFont::Bold } } };
+//const QFontMetrics ConsumptionDisplay::font_metrics[3] = { QFontMetrics(fonts[0]), QFontMetrics(fonts[1]), QFontMetrics(fonts[2]) };
 
 void Speedometer::draw(QPainter& painter, const QPointF pos, const qreal kmh)
 {
@@ -85,22 +85,22 @@ void ConsumptionDisplay::draw(QPainter& painter, QPointF pos, qreal consumption,
 	painter.drawRoundedRect(QRectF(pos + QPointF(-0.5 * rect_size.width(), -0.5 * rect_size.height() + rect_y_offset), rect_size), 5, 3);
 	painter.setPen(QPen(Qt::white));
 
-	QPointF p;
-	// draw number
-	if (draw_number) {
-		painter.setFont(fonts[0]);
-		p = pos + QPointF(-0.5 * number_width, -0.5 * height + font_heights[0]);
-		painter.drawText(p, number);
-	}
+    QPointF p;
+    // draw number
+    if (draw_number) {
+        painter.setFont(fonts[0]);
+        p = pos + QPointF(-0.5 * number_width, -0.5 * height + font_heights[0]);
+        painter.drawText(p, number);
+    }
 
-	// draw 1st part of legend
-	painter.setFont(fonts[1]);
-	p = pos + QPointF(-0.5 * legend_width, 0.5 * height - l2_y_offset);
-	painter.drawText(p, legend[0]);
+    // draw 1st part of legend
+    painter.setFont(fonts[1]);
+    p = pos + QPointF(-0.5 * legend_width, 0.5 * height - l2_y_offset);
+    painter.drawText(p, legend[0]);
 
-	//draw 2nd part of legend
-	painter.setFont(fonts[2]);
-	p.setX(p.x() + legend_widths[0] + l2_x_offset);
-	p.setY(p.y() + l2_y_offset);
-	painter.drawText(p, legend[1]);
+    //draw 2nd part of legend
+    painter.setFont(fonts[2]);
+    p.setX(p.x() + legend_widths[0] + l2_x_offset);
+    p.setY(p.y() + l2_y_offset);
+    painter.drawText(p, legend[1]);
 }

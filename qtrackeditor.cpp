@@ -66,14 +66,24 @@ void QTrackEditor::mousePressEvent(QMouseEvent *e)
         if (track.signs[i].get_position(pos, pole_pos, path) && pos.contains(mp)) {
             sign_moving = i;
             selected_traffic_light = (track.signs[i].type == Track::Sign::TrafficLight) ? &track.signs[i] : nullptr;
+            selected_steer_sign = track.signs[i].is_turn_sign() ? &track.signs[i] : nullptr;
             if (selected_traffic_light) {
                 Track::Sign::TrafficLightInfo& info = selected_traffic_light->traffic_light_info;
                 tl_min_time->setValue(info.time_range.first);
                 tl_max_time->setValue(info.time_range.second);
                 tl_distance->setValue(info.trigger_distance);
             }
+            if (selected_steer_sign) {
+                Track::Sign::SteeringInfo& info = selected_steer_sign->steering_info;
+                steer_intensity->setValue(info.intensity);
+                steer_time->setValue(info.duration);
+                steer_fade_in->setValue(info.fade_in);
+                steer_fade_out->setValue(info.fade_out);
+            }
             for (auto w : tl_widgets)
                 w->setVisible(!!selected_traffic_light);
+            for (auto w : steer_widgets)
+                w->setVisible(!!selected_steer_sign);
             break;
         }
     }

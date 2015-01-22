@@ -13,6 +13,8 @@ struct WingmanInput
 	bool update_wheel() { return false; }
 	bool steering_left() { return false; }
 	bool steering_right() { return false; }
+	bool wheel_neutral() { return false; }
+	double wheel() { return 0; }
 
 
 	bool valid() { return false; }
@@ -78,11 +80,21 @@ public:
         return update;
     }
 
+    const int neutral_range = 7;
     double gas() { return value < 255 ? (255-value)/255. : 0; }
     double brake() { return value > 255 ? (value-255)/65280. : 0; }
-    double wheel() { /*printf("%.3f\n", (wheel_value - 128) / 128.);*/ return (wheel_value - 128) / 128.; }
-    bool steering_left() { return wheel() < -0.5; }
-    bool steering_right() { return wheel() > 0.5; }
+    double wheel() {
+        /*printf("%.3f\n", (wheel_value - 128) / 128.);*/
+        int val = wheel_value - 128;
+        if (abs(val) <= neutral_range)
+            return 0;
+        //val += (val > 0) ? -neutral_range : neutral_range;
+        qDebug() << val << (double) (val) / (128-neutral_range);
+        return pow((double) (val) / (128-neutral_range), 3);
+    }
+    bool wheel_neutral() { /*qDebug() << wheel_value; */return wheel_value >= 121 && wheel_value <= 135; }
+//    bool steering_left() { return wheel() < -0.5; }
+//    bool steering_right() { return wheel() > 0.5; }
     bool left_click() {
         const bool ret = left_button_click;
         left_button_click = false;

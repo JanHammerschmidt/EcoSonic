@@ -40,7 +40,9 @@ public:
               QPushButton* add_sign, QPushButton* reset, QSpinBox* max_time,
               QPushButton* prune_points, QSpinBox* new_points_distance,
               QSpinBox* tl_min_time, QSpinBox* tl_max_time, QSpinBox* tl_distance,
-              QLabel* lbl_min_time, QLabel* lbl_max_time, QLabel* lbl_distance)
+              QLabel* lbl_min_time, QLabel* lbl_max_time, QLabel* lbl_distance,
+              QDoubleSpinBox* steer_intensity, QDoubleSpinBox* steer_time, QDoubleSpinBox* steer_fade_in, QDoubleSpinBox* steer_fade_out,
+              QLabel* lbl_steer_intensity, QLabel* lbl_steer_time, QLabel* lbl_steer_fade_in, QLabel* lbl_steer_fade_out)
     {
         QObject::connect(width_control, SIGNAL(valueChanged(int)),
                          this, SLOT(change_width(int)));
@@ -56,6 +58,8 @@ public:
                          this, SLOT(change_max_time(int)));
         QObject::connect(prune_points, SIGNAL(clicked()),
                          this, SLOT(prune_points()));
+
+        // traffic light infos
         QObject::connect(tl_min_time, SIGNAL(valueChanged(int)),
                          this, SLOT(tl_min_time_changed(int)));
         QObject::connect(tl_max_time, SIGNAL(valueChanged(int)),
@@ -63,11 +67,24 @@ public:
         QObject::connect(tl_distance, SIGNAL(valueChanged(int)),
                          this, SLOT(tl_distance_changed(int)));
 
+        // steering infos
+        QObject::connect(steer_intensity, SIGNAL(valueChanged(double)),
+                         this, SLOT(steer_intensity_changed(double)));
+        QObject::connect(steer_time, SIGNAL(valueChanged(double)),
+                         this, SLOT(steer_time_changed(double)));
+        QObject::connect(steer_fade_in, SIGNAL(valueChanged(double)),
+                         this, SLOT(steer_fade_in_changed(double)));
+        QObject::connect(steer_fade_out, SIGNAL(valueChanged(double)),
+                         this, SLOT(steer_fade_out_changed(double)));
+
         num_control_points->setValue(track.num_points);
         width_control->setValue(track.width / 10);
         this->num_control_points = num_control_points;
         this->show_control_points = show_control_points;
         this->new_points_distance = new_points_distance;
+        max_time->setValue(track.max_time);
+
+        // traffic light infos
         this->tl_distance = tl_distance;
         this->tl_min_time = tl_min_time;
         this->tl_max_time = tl_max_time;
@@ -75,7 +92,14 @@ public:
         tl_widgets.append(lbl_distance); tl_widgets.append(lbl_min_time); tl_widgets.append(lbl_max_time);
         for (auto w : tl_widgets)
             w->setVisible(false);
-        max_time->setValue(track.max_time);
+
+        // steering infos
+        this->steer_intensity = steer_intensity; this->steer_time = steer_time;
+        this->steer_fade_in = steer_fade_in; this->steer_fade_out = steer_fade_out;
+        steer_widgets.append(steer_intensity); steer_widgets.append(steer_time), steer_widgets.append(steer_fade_in); steer_widgets.append(steer_fade_out);
+        steer_widgets.append(lbl_steer_intensity), steer_widgets.append(lbl_steer_time), steer_widgets.append(lbl_steer_fade_in), steer_widgets.append(lbl_steer_fade_out);
+        for (auto w : steer_widgets)
+            w->setVisible(false);
     }
 
     bool save_track() {
@@ -110,11 +134,19 @@ protected:
     QSpinBox* num_control_points = NULL;
     QSpinBox* show_control_points = NULL;
     QSpinBox* new_points_distance = NULL;
+
     QSpinBox* tl_min_time = NULL;
     QSpinBox* tl_max_time = NULL;
     QSpinBox* tl_distance = NULL;
     QList<QWidget*> tl_widgets;
     Track::Sign* selected_traffic_light = NULL;
+
+    QDoubleSpinBox* steer_intensity = nullptr;
+    QDoubleSpinBox* steer_time = nullptr;
+    QDoubleSpinBox* steer_fade_in = nullptr;
+    QDoubleSpinBox* steer_fade_out = nullptr;
+    QList<QWidget*> steer_widgets;
+    Track::Sign* selected_steer_sign = NULL;
 
 
 public slots:
@@ -149,6 +181,29 @@ public slots:
         selected_traffic_light->traffic_light_info.trigger_distance = d;
         update();
     }
+
+    // steering info
+    void steer_intensity_changed(double d) {
+        Q_ASSERT(selected_steer_sign);
+        selected_steer_sign->steering_info.intensity = d;
+        update();
+    }
+    void steer_time_changed(double d) {
+        Q_ASSERT(selected_steer_sign);
+        selected_steer_sign->steering_info.duration = d;
+        update();
+    }
+    void steer_fade_in_changed(double d) {
+        Q_ASSERT(selected_steer_sign);
+        selected_steer_sign->steering_info.fade_in = d;
+        update();
+    }
+    void steer_fade_out_changed(double d) {
+        Q_ASSERT(selected_steer_sign);
+        selected_steer_sign->steering_info.fade_out = d;
+        update();
+    }
+
 
     void change_width(int width) {
         width *= 10;

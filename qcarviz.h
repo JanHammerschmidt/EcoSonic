@@ -17,6 +17,7 @@
 #include <QShortcut>
 #include <QMainWindow>
 #include <QSvgGenerator>
+#include <boost/algorithm/clamp.hpp>
 #include <random>
 #include "hud.h"
 #include "qtrackeditor.h"
@@ -26,6 +27,12 @@
 #include "track.h"
 #include "car.h"
 #include "hudwindow.h"
+
+#include <QMessageBox>
+#include <QLabel>
+#include <QMenu>
+
+
 
 #define DEFAULT_SPEED_LIMIT 300 // kmh
 
@@ -82,28 +89,7 @@ public slots:
         //save_svg();
     }
 
-    void start() {
-        if (current_pos >= track_path.length()) {
-            current_pos = initial_pos;
-            car->gearbox.clutch.disengage();
-            if (!replay)
-                car->engine.reset();
-            car->gearbox.reset();
-            car->speed = 0;
-            consumption_monitor.reset();
-            if (!replay)
-                track_started = false;
-            for (Track::Sign& s : track.signs) {
-                if (s.type == Track::Sign::TrafficLight)
-                    s.traffic_light_state = Track::Sign::Red;
-            }
-        }
-        time_delta.start();
-        tick_timer.start();
-        started = true;
-        osc->send_float("/startEngine", 0);
-        start_button->setText("Pause");
-    }
+    void start();
 
 signals:
     void slow_tick(qreal dt, qreal elapsed, ConsumptionMonitor& consumption_monitor);
@@ -117,12 +103,6 @@ protected slots:
     bool tick();
 
 protected:
-
-    enum Arrow {
-        None,
-        Right,
-        Left,
-    } show_arrow = None;
 
     void fill_trees() {
         trees.clear();
@@ -154,15 +134,13 @@ protected:
         painter.end();
     }
 
-    void trigger_arrow(Arrow direction = Arrow::None) {
-        if (direction == Arrow::None) {
-            std::uniform_int_distribution<int> dir(0,1);
-            show_arrow = dir(rng) == 0 ? Arrow::Left : Arrow::Right;
-        } else
-            show_arrow = direction;
-        std::uniform_real_distribution<qreal> length(1,2); // seconds
-        turn_sign_length = current_turn_sign_length = length(rng); // these are seconds!
-        //printf("%s\n", show_arrow == Arrow::None ? "None" : (show_arrow == Arrow::Left ? "Left" : "Right"));
+    void trigger_arrow();
+    void steer(const qreal val) {
+        steering = boost::algorithm::clamp(steering + val, -1, 1);
+        //qDebug() << val << steering;
+    }
+    qreal time_elapsed() {
+        return time_delta.get_elapsed() - track_started_time;
     }
 
     void draw(QPainter& painter);
@@ -231,8 +209,10 @@ protected:
     int replay_index = 0;
     std::auto_ptr<QSvgRenderer> turn_sign;
     QRectF turn_sign_rect;
-    qreal turn_sign_length = 0;
-    qreal current_turn_sign_length = 0;
+    qreal steering = 0; // between -1 (left) and 1 (right)
+//    qreal turn_sign_length = 0;
+//    qreal current_turn_sign_length = 0;
+
 };
 
 

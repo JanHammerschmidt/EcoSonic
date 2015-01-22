@@ -42,15 +42,17 @@ struct ConsumptionDisplay {
     {
         legend[0] = legend1;
         legend[1] = legend2;
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 3; i++) {
             font_heights[i] = font_metrics[i].height();
+        }
     }
 	void draw(QPainter& painter, QPointF pos, qreal consumption, bool draw_number = true);
 
     // fonts for number, 'L/', 100kmh
-	static const std::array<QFont, 3> fonts;
-    //QFont fonts[3] = { {"Eurostile", 18, QFont::Bold}, {"Eurostile", 12, QFont::Bold}, {"Eurostile", 8, QFont::Bold} };
-	static const QFontMetrics font_metrics[3];
+    QFont fonts[3] = { {"Eurostile", 18, QFont::Bold}, {"Eurostile", 12, QFont::Bold}, {"Eurostile", 8, QFont::Bold} };
+    QFontMetrics font_metrics[3] = {QFontMetrics(fonts[0]), QFontMetrics(fonts[1]), QFontMetrics(fonts[2])};
+    //	static const std::array<QFont, 3> fonts;
+    //	static const QFontMetrics font_metrics[3];
     qreal font_heights[3];
 	std::array<QString, 2> legend = { { "L/", "100km" } };
     const char* const number_format;

@@ -70,7 +70,9 @@ MainWindow::MainWindow(QWidget *parent)
     ui->track_editor->init(ui->track_width, ui->track_points, ui->track_show_control_points,
                            ui->track_add_sign, ui->track_reset, ui->max_time, ui->track_prune_points,
                            ui->track_new_points_distance, ui->track_tl_min_time, ui->track_tl_max_time,
-                           ui->track_tl_distance, ui->lbl_min_time, ui->lbl_max_time, ui->lbl_distance);
+                           ui->track_tl_distance, ui->lbl_min_time, ui->lbl_max_time, ui->lbl_distance,
+                           ui->steer_intensity, ui->steer_time, ui->steer_fade_in, ui->steer_fade_out,
+                           ui->lbl_steer_intensity, ui->lbl_steer_time, ui->lbl_steer_fade_in, ui->lbl_steer_fade_out);
     ui->car_viz->init(&car, ui->start, ui->throttle, ui->breaking, ui->gear, this, &osc);
     QObject::connect(ui->car_viz, SIGNAL(slow_tick(qreal,qreal, ConsumptionMonitor&)),
                      this, SLOT(update_plots(qreal,qreal,ConsumptionMonitor&)));

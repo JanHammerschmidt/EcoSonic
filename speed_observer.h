@@ -13,23 +13,65 @@
 #define COOLDOWN_TIME 3000 // how long "nothing" happens after a honking (ms)
 
 struct TurnSignObserver {
+    struct TurnSignExecutor {
+        TurnSignExecutor(Track::Sign* sign, const qreal t0, QCarViz& car_viz)
+            : info(sign->steering_info), t0(t0), car_viz(car_viz)
+        {
+            info.left = (sign->type == Track::Sign::TurnLeft);
+            t_stages[0] = info.fade_in;
+            t_stages[1] = t_stages[0] + info.duration;
+            t_stages[2] = t_stages[1] + info.fade_out;
+        }
+        bool tick(const qreal t, const qreal dt) {
+            const qreal tt = t - t0;
+            if (tt > t_stages[stage]) {
+                stage++;
+                if (stage >= 3)
+                    return true;
+            }
+            qreal intensity = info.intensity * dt;
+            switch (stage) {
+                case 0: intensity *= tt / info.fade_in; break;
+                case 1: break;
+                case 2: intensity *= 1 - (tt - t_stages[1]) / info.fade_out; break;
+                default: Q_ASSERT(false);
+            }
+            //qDebug() << "stage " << stage << " steer " << intensity / dt;
+            car_viz.steer(intensity * (info.left ? -1 : 1));
+            return false;
+        }
+        Track::Sign::SteeringInfo& info;
+        const qreal t0;
+        QCarViz& car_viz;
+        int stage = 0;
+        qreal t_stages[3];
+    };
+
     TurnSignObserver(QCarViz& carViz)
         : track(carViz.track), carViz(carViz)
     {
         find_next_sign();
     }
 
-    void tick() {
+    void tick(const qreal t, const qreal dt) {
+        if (!!current_sign.get() && current_sign->tick(t, dt)) {
+            current_sign.reset();
+        }
         if (!next_sign)
             return;
         const qreal current_pos = carViz.current_pos;
         if (current_pos > next_sign->at_length) {
-            carViz.trigger_arrow(next_sign->type == Track::Sign::TurnLeft ? QCarViz::Arrow::Left : QCarViz::Arrow::Right);
+            trigger(next_sign, t);
             find_next_sign();
         }
     }
+    void trigger(Track::Sign* sign, qreal t0) {
+        Q_ASSERT(sign->is_turn_sign());
+        current_sign.reset(new TurnSignExecutor(sign, t0, carViz));
+    }
+
     void find_next_sign() {
-        printf("find next sign!\n");
+        qDebug() << "find next sign!";
         if (!track.signs.size())
             return;
         if (!next_sign)
@@ -46,11 +88,15 @@ struct TurnSignObserver {
         }
     }
 
-    inline void reset() { find_next_sign(); }
+    inline void reset() {
+        next_sign = nullptr;
+        find_next_sign();
+    }
 
     Track::Sign* next_sign = nullptr;
     Track& track;
     QCarViz& carViz;
+    std::auto_ptr<TurnSignExecutor> current_sign;
 };
 
 struct SpeedObserver {
@@ -100,7 +146,7 @@ struct SpeedObserver {
         if (next_sign && next_sign->type == Track::Sign::TrafficLight && next_sign->traffic_light_state == Track::Sign::Red
                 && (next_sign->at_length - current_pos) < next_sign->traffic_light_info.trigger_distance)
         {
-            printf("trigger!\n");
+            qDebug() << "trigger!";
             next_sign->traffic_light_state = Track::Sign::Red_pending;
             QtConcurrent::run(trigger_traffic_light, next_sign);
         }
@@ -122,7 +168,7 @@ struct SpeedObserver {
                 && !(current_hold_sign->type == Track::Sign::TrafficLight && current_hold_sign->traffic_light_state != Track::Sign::Red)
                 && current_pos - current_hold_sign->at_length > 10)
         {
-            printf("stop sign / traffic light!\n");
+            qDebug() << "stop sign / traffic light!";
             osc.send_float("/flash", 0);
             carViz.flash_timer.start();
             cooldown_timer.start();
@@ -131,7 +177,7 @@ struct SpeedObserver {
         if (toofast) {
             if (state == too_fast) {
                 if (last_state_change.elapsed() > MAX_TOO_FAST) {
-                    printf("too fast!\n");
+                    qDebug() << "too fast!";
                     osc.send_float("/flash", 0);
                     carViz.flash_timer.start();
                     cooldown_timer.start();

@@ -12,7 +12,8 @@ QCarViz::QCarViz(QWidget *parent)
     setPalette(p);
     flash_timer.start();
 
-    printf("%s\n", QDir::currentPath().toStdString().c_str());
+    qDebug() << QDir::currentPath();
+    //printf("%s\n", QDir::currentPath().toStdString().c_str());
 
     add_tree_type("tree", 0.2/3, 50*3);
     add_tree_type("birch", 0.08, 140);
@@ -53,13 +54,50 @@ void QCarViz::copy_from_track_editor(QTrackEditor* track_editor)
     prepare_track();
 }
 
+void QCarViz::trigger_arrow()
+{
+    std::uniform_int_distribution<int> dir(0,1);
+    std::uniform_real_distribution<qreal> intensity(0.3, 1);
+    std::uniform_real_distribution<qreal> duration(0.8, 1.5);
+    std::uniform_real_distribution<qreal> fade_in(0.05, 0.5);
+    std::uniform_real_distribution<qreal> fade_out(0.05, 0.5);
+    static Track::Sign sign;
+    sign = Track::Sign(!dir(rng) ? Track::Sign::TurnLeft : Track::Sign::TurnRight, 0);
+    turnSignObserver->trigger(&sign, time_elapsed());
+}
+
+void QCarViz::start() {
+    if (current_pos >= track_path.length()) {
+        current_pos = initial_pos;
+        car->gearbox.clutch.disengage();
+        if (!replay)
+            car->engine.reset();
+        car->gearbox.reset();
+        car->speed = 0;
+        consumption_monitor.reset();
+        if (!replay)
+            track_started = false;
+        for (Track::Sign& s : track.signs) {
+            if (s.type == Track::Sign::TrafficLight)
+                s.traffic_light_state = Track::Sign::Red;
+        }
+        turnSignObserver->reset();
+    }
+    time_delta.start();
+    tick_timer.start();
+    started = true;
+    osc->send_float("/startEngine", 0);
+    start_button->setText("Pause");
+}
+
 bool QCarViz::load_log(const QString filename) {
     std::shared_ptr<Log>& log = car->log;
     log.reset(new Log(car, &track));
     const bool ret = loadObj(filename, *log);
     if (ret) {
         if (!log->valid) {
-            printf("wrong version!\n");
+            qDebug() << "wrong version!";
+            //printf("wrong version!\n");
             return false;
         }
         printf("log: elapsed_time: %.3f\n", log->elapsed_time);
@@ -128,12 +166,10 @@ bool QCarViz::tick() {
         if (keyboard_input.show_arrow()) {
             trigger_arrow();
         }
-        if ((show_arrow == Arrow::Left && keyboard_input.keys_pressed.contains(Qt::Key_O))
-                || (show_arrow == Arrow::Right && keyboard_input.keys_pressed.contains(Qt::Key_P)))
-        {
-            if ((current_turn_sign_length -= dt) < 0)
-                show_arrow = None;
-        }
+        if (keyboard_input.keys_pressed.contains(Qt::Key_O)) // steering to the left
+            steer(dt); // "reduces" steering hint
+        if (keyboard_input.keys_pressed.contains(Qt::Key_P))
+            steer(-dt);
 
 //    // manual clutch control
 //    const bool toggle_clutch = keyboard_input.toggle_clutch();
@@ -145,6 +181,7 @@ bool QCarViz::tick() {
 //            clutch.clutch_in(car->engine, &car->gearbox, car->speed);
 //    }
     }
+    qreal t = time_elapsed();
     // automatic clutch control
     if (track_started)
         car->gearbox.auto_clutch_control(car);
@@ -178,12 +215,9 @@ bool QCarViz::tick() {
                     car->gearbox.gear_up();
                 gear_spinbox->setValue(car->gearbox.get_gear()+1);
             }
-            if (show_arrow != None) {
-                wingman_input.update_wheel();
-                if ((show_arrow == Left && wingman_input.steering_left()) || (show_arrow == Right && wingman_input.steering_right())) {
-                    if ((current_turn_sign_length -= dt) < 0)
-                        show_arrow = None;
-                }
+            wingman_input.update_wheel();
+            if (!wingman_input.wheel_neutral()) {
+                steer(-wingman_input.wheel() * dt * 1.5);
             }
         }
         if (!track_started && car->throttle > 0) {
@@ -193,6 +227,7 @@ bool QCarViz::tick() {
             car->log->initial_angular_velocity = car->engine.angular_velocity;
         }
     }
+    turnSignObserver->tick(t, dt);
 
     const qreal alpha_scale = 0.8;
     const qreal alpha = !track_path.length() ? 0 : (alpha_scale * atan(-track_path.slopeAtPercent(track_path.percentAtLength(current_pos)))); // slope [rad]
@@ -208,7 +243,7 @@ bool QCarViz::tick() {
     if (!replay && track_path.length() > initial_pos && current_pos >= track_path.length()) {
         stop();
 		Q_ASSERT(car->log != nullptr);
-        car->log->elapsed_time = time_delta.get_elapsed() - track_started_time;
+        car->log->elapsed_time = time_elapsed();
         car->log->liters_used = consumption_monitor.liters_used;
         car->log->sound_modus = sound_modus;
         car->save_log(program_start_time);
@@ -231,7 +266,6 @@ bool QCarViz::tick() {
             car->braking = breaking_slider->value() / 100.;
         }
         speedObserver->tick();
-        turnSignObserver->tick();
         emit slow_tick(elapsed - last_elapsed, elapsed, consumption_monitor);
         last_elapsed = elapsed;
     }
@@ -250,7 +284,7 @@ void QCarViz::draw(QPainter& painter)
     //printf("%.3f\n", current_alpha * 180 / M_PI);
 
     //draw the current speed limit / current_pos / time elapsed
-    QString number; number.sprintf("%04.1f", time_delta.get_elapsed() - track_started_time);
+    QString number; number.sprintf("%04.1f", time_elapsed());
     painter.setFont(QFont{"Eurostile", 18, QFont::Bold});
     QPointF p = {300,300};
     if (track_started)
@@ -258,7 +292,7 @@ void QCarViz::draw(QPainter& painter)
     // /////
 
     // draw remaining time
-    TimeDisplay::draw(painter, {10,30}, track.max_time, time_delta.get_elapsed() - track_started_time, track_started);
+    TimeDisplay::draw(painter, {10,30}, track.max_time, time_elapsed(), track_started);
 
     const bool hud_external = hud_window.get() != nullptr;
 
@@ -313,33 +347,68 @@ void QCarViz::draw(QPainter& painter)
         tree_types[tree.type].draw_scaled(painter, tree_pos, Gearbox::speed2kmh(car->speed), tree.scale);
     }
 
+
+#define DRAW_ARROW_SIGN 2 // 0: simple arrow 1: arrow sign 2: "street"-arrow 3: curved "street"-arrow
+
     // draw an arrow
     //printf("%s ", show_arrow == Arrow::None ? "None" : (show_arrow == Arrow::Left ? "Left" : "Right"));
-    if (show_arrow != Arrow::None) {
+#if (DRAW_ARROW_SIGN < 2)
+    const double center_tolerance = 0.05;
+    if (steering > center_tolerance || steering < -center_tolerance)
+#endif
+    {
+        //qDebug() << steering;
         //printf("draw ");
         //t = t0;
         t.reset();
-#define DRAW_ARROW_SIGN 2 // 0: simple arrow 1: arrow sign 2: "street"-arrow
-#if (DRAW_ARROW_SIGN==1)
+
+#if (DRAW_ARROW_SIGN==0)
+        t.translate(0.5 * width(), 40);
+        painter.setOpacity(fabs(steering) - center_tolerance);
+#elif (DRAW_ARROW_SIGN==1)
         t.translate(0.5 * (width() - turn_sign_rect.width()), 20);
-        if (show_arrow == Arrow::Left) {
+        if (steering < 0) {
             t.scale(-1,1);
             t.translate(-turn_sign_rect.width(),0);
         }
-#elif (DRAW_ARROW_SIGN==2)
-        t.translate(0.5 * width(), 20);
+        painter.setOpacity(fabs(steering) - center_tolerance);
 #else
-        t.translate(car_x_pos, cur_p.y() - car_height - 10);
+        t.translate(0.5 * width(), 20);
 #endif
         painter.setTransform(t);
-        painter.setOpacity(current_turn_sign_length / turn_sign_length);
-#if (DRAW_ARROW_SIGN==1)
+#if (DRAW_ARROW_SIGN==0)
+        const qreal mult = steering < 0 ? -1 : 1;
+        const qreal head_x = fabs(steering) * mult * 30;
+        const QPointF head(head_x, 0);
+//        painter.drawPoint(QPointF(0,0));
+//        painter.drawPoint(head);
+        painter.setPen(QPen(Qt::black, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        painter.drawLine(QPointF(0,0), head);
+        painter.drawLine(QPointF(head_x - 5*mult, -5), head);
+        painter.drawLine(QPointF(head_x - 5*mult, +5), head);
+#elif (DRAW_ARROW_SIGN==1)
         turn_sign->render(&painter, turn_sign_rect);
 #elif (DRAW_ARROW_SIGN==2)
-        const qreal scale = 60;
-        const qreal alpha = ((show_arrow == Arrow::Left) ? 1 : -1) * (current_turn_sign_length / turn_sign_length);
-        const qreal a = 0.5*M_PI + alpha;
-        QPointF top(cos(a), 1 - sin(a)); top *= scale;
+        const qreal scale = 80;
+        const qreal alpha = steering;
+        //const qreal a = 0.5*M_PI + alpha;
+        //QPointF top(cos(a), 1 - 0.4 - 0.4 * sin(a)); top *= scale;
+        QPointF top(alpha, 0.5); top *= scale;
+        QPointF left(-0.4, 1); left *= scale;
+        QPointF right(0.4, 1); right *= scale;
+        QPointF mid(0, 1 * scale);
+        painter.drawLine(top, left);
+        painter.drawLine(top, right);
+        QPainterPath p; p.moveTo(top); p.lineTo(left); p.lineTo(right); p.lineTo(top);
+        painter.fillPath(p, Qt::gray);
+        QPen pen(Qt::white);
+        pen.setStyle(Qt::DashLine);
+        pen.setDashOffset(-current_pos * 0.2);
+        painter.setPen(pen);
+        painter.drawLine(top, mid);
+#else
+        const qreal scale = 80;
+        QPointF top(-steering, 0.5); top *= scale;
         QPointF left(-0.4, 1); left *= scale;
         QPointF right(0.4, 1); right *= scale;
         QPointF mid(0, 1 * scale);
@@ -351,16 +420,6 @@ void QCarViz::draw(QPainter& painter)
         pen.setStyle(Qt::DashLine);
         painter.setPen(pen);
         painter.drawLine(top, mid);
-#else
-        const qreal mult = (show_arrow == Arrow::Left) ? -1 : 1;
-        const qreal head_x = current_turn_sign_length * mult * 10;
-        const QPointF head(head_x, 0);
-//        painter.drawPoint(QPointF(0,0));
-//        painter.drawPoint(head);
-        painter.setPen(QPen(Qt::black, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-        painter.drawLine(QPointF(0,0), head);
-        painter.drawLine(QPointF(head_x - 5*mult, -5), head);
-        painter.drawLine(QPointF(head_x - 5*mult, +5), head);
 #endif
         painter.setOpacity(2.0);
     }

@@ -110,8 +110,13 @@ struct Track {
             qreal trigger_distance = 500; //200;
             std::pair<qreal,qreal> time_range = {7000,7000}; //{3000,3000}; //{0,3000};
         };
-        struct TurningInfo {
-
+        struct SteeringInfo {
+            qreal intensity = 0.5; // steering "power" (intensity * dt)
+            qreal duration = 1.2; // how long (on given intensity)
+            qreal fade_in = 0.2; // how long to "fade in" to the given intensity
+            qreal fade_out = 0.2; // same for fading out
+        //private:
+            bool left = false; // otherwise to the right! ;) [determined by the sign itself!]
         };
         Sign() {}
         Sign(const Type type, const qreal at_length) : type(type), at_length(at_length) {}
@@ -140,20 +145,32 @@ struct Track {
             img.is_svg ? img.svg->render(&painter, pos) : painter.drawImage(pos, *img.img);
             if (editor && type == TrafficLight) {
                 // draw time range
-                QFont font("Eurostile", 12); // font.setBold(false);
+                QFont font("Eurostile", 12);
                 painter.setFont(font);
                 QFontMetrics fm = painter.fontMetrics();
                 QString s;
                 QPointF p((pos.left() + pos.right()) / 2, pos.top() - 1.1 * fm.height());
                 s.sprintf("%02.1f", traffic_light_info.time_range.first / 1000.);
                 Speedometer::draw_centered_text(painter, fm, s, p);
-                s.sprintf("%02.1f", traffic_light_info.time_range.first / 1000.);
+                s.sprintf("%02.1f", traffic_light_info.time_range.second / 1000.);
                 p.setY(p.y() - 1.1 * fm.height());
                 Speedometer::draw_centered_text(painter, fm, s, p);
                 // draw trigger distance
                 qreal const percent = path.percentAtLength(at_length - traffic_light_info.trigger_distance);
                 p = path.pointAtPercent(percent);
                 painter.drawLine(p + QPointF(0, 5), p - QPointF(0, 10));
+            }
+            if (editor && is_turn_sign()) {
+                QFont font("Eurostile", 12);
+                painter.setFont(font);
+                QFontMetrics fm = painter.fontMetrics();
+                QString s;
+                QPointF p((pos.left() + pos.right()) / 2, pos.top() - 1.1 * fm.height());
+                for (auto i : {steering_info.fade_out, steering_info.fade_in, steering_info.duration, steering_info.intensity}) {
+                    s.sprintf("%02.1f", i);
+                    Speedometer::draw_centered_text(painter, fm, s, p);
+                    p.setY(p.y() - 1.1 * fm.height());
+                }
             }
             return true;
         }
@@ -165,6 +182,7 @@ struct Track {
         qreal at_length = 0;
         TrafficLightState traffic_light_state = Red;
         TrafficLightInfo traffic_light_info;
+        SteeringInfo steering_info;
     };
 
     void check_traffic_light_distance(Sign& s, qreal prev_pos = 0, const qreal min_dist = 100) {
@@ -272,14 +290,36 @@ inline QDataStream &operator>>(QDataStream &in, Track &track) {
     return in;
 }
 
+inline QDataStream &operator<<(QDataStream &out, const Track::Sign::TrafficLightInfo &tl_info) {
+    out << tl_info.time_range.first << tl_info.time_range.second << tl_info.trigger_distance;
+    return out;
+}
+
+inline QDataStream &operator>>(QDataStream &in, Track::Sign::TrafficLightInfo &tl_info) {
+    in >> tl_info.time_range.first >> tl_info.time_range.second >> tl_info.trigger_distance;
+    return in;
+}
+
+inline QDataStream &operator<<(QDataStream &out, const Track::Sign::SteeringInfo &s_info) {
+    out << s_info.duration << s_info.intensity << s_info.fade_in << s_info.fade_out << s_info.left;
+    return out;
+}
+
+inline QDataStream &operator>>(QDataStream &in, Track::Sign::SteeringInfo &s_info) {
+    in >> s_info.duration >> s_info.intensity >> s_info.fade_in >> s_info.fade_out >> s_info.left;
+    return in;
+}
+
+
+
 inline QDataStream &operator<<(QDataStream &out, const Track::Sign &sign) {
-    out << (int) sign.type << sign.at_length;
+    out << (int) sign.type << sign.at_length << sign.traffic_light_info << sign.steering_info;
     return out;
 }
 
 inline QDataStream &operator>>(QDataStream &in, Track::Sign &sign) {
     int type;
-    in >> type >> sign.at_length;
+    in >> type >> sign.at_length >> sign.traffic_light_info >> sign.steering_info;
     sign.type = (Track::Sign::Type) type;
     return in;
 }
