@@ -7,7 +7,7 @@
 QT       += core gui
 QT      += svg
 
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport multimedia concurrent
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport multimedia concurrent network
 
 TARGET = car_simulator
 TEMPLATE = app
@@ -77,7 +77,6 @@ HEADERS  += mainwindow.h \
     qtrackeditor.h \
     track.h \
     lib/HID/HID.h \
-    PedalInput.h \
     OSCSender.h \
     hud.h \
     speed_observer.h \

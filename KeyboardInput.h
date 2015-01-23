@@ -41,6 +41,12 @@ struct KeyboardInput : public QObject
         return ret;
     }
 
+    bool connect() {
+        const bool ret = t_connect;
+        t_connect = false;
+        return ret;
+    }
+
     int get_sound_modus() { return sound_modus; }
 
     bool update() {
@@ -73,6 +79,7 @@ protected:
                 case Qt::Key_T: control_window = true; break;
                 case Qt::Key_U: t_pitch_toggle = true; break;
                 case Qt::Key_D: t_arrow = true; break;
+                case Qt::Key_C: t_connect = true; break;
                 default: keys_pressed.insert(key);
             }
         }
@@ -91,6 +98,7 @@ protected:
     bool control_window = false;
     bool t_pitch_toggle = false;
     bool t_arrow = false;
+    bool t_connect = false;
 };
 
 #endif // KEYBOARDINPUT_H

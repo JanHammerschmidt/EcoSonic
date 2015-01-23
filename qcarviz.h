@@ -17,7 +17,9 @@
 #include <QShortcut>
 #include <QMainWindow>
 #include <QSvgGenerator>
+#include <QTcpSocket>
 #include <boost/algorithm/clamp.hpp>
+#include <algorithm>
 #include <random>
 #include "hud.h"
 #include "qtrackeditor.h"
@@ -102,6 +104,36 @@ protected slots:
 
     bool tick();
 
+    void eye_tracker_connected() {
+        qDebug() << "eye Tracker Socket connected";
+    }
+    void eye_tracker_disconnected() {
+        qDebug() << "eye Tracker Socket disconnected";
+    }
+
+    void eye_tracker_error(QAbstractSocket::SocketError error) {
+        qDebug() << "eye Tracker Socket ERROR:" << error;
+    }
+
+    void eye_tracker_read() {
+        static const qint64 chunk_size = sizeof(double)*2;
+        char raw_data[chunk_size*50];
+        qDebug() << "eye Tracker Socket read";
+        qint64 avail = eye_tracker_socket.bytesAvailable();
+        if (avail < chunk_size)
+            return;
+        const qint64 size = std::min((avail/chunk_size) * chunk_size, (qint64) sizeof(raw_data));
+        eye_tracker_socket.read(raw_data, size);
+        double* data = (double*) &raw_data[size-chunk_size];
+        qDebug() << data[0] << data[1];
+
+//        if (eye_tracker_socket.canReadLine()) {
+//            char test[20];
+//            eye_tracker_socket.readLine(test, 10);
+//            qDebug() << test;
+//        }
+    }
+
 protected:
 
     void fill_trees() {
@@ -141,6 +173,17 @@ protected:
     }
     qreal time_elapsed() {
         return time_delta.get_elapsed() - track_started_time;
+    }
+
+    void connect_to_eyetracker() {
+        if (eye_tracker_socket.isOpen()) {
+            qDebug() << "disconnecting...";
+            eye_tracker_socket.abort();
+            eye_tracker_socket.close();
+        } else {
+            qDebug() << "connecting...";
+            eye_tracker_socket.connectToHost("129.70.135.115", 7767);
+        }
     }
 
     void draw(QPainter& painter);
@@ -212,7 +255,7 @@ protected:
     qreal steering = 0; // between -1 (left) and 1 (right)
 //    qreal turn_sign_length = 0;
 //    qreal current_turn_sign_length = 0;
-
+    QTcpSocket eye_tracker_socket;
 };
 
 

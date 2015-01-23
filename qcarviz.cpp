@@ -43,7 +43,12 @@ void QCarViz::init(Car* car, QPushButton* start_button, QSlider* throttle, QSlid
     keyboard_input.init(main_window);
     consumption_monitor.osc = osc;
     this->osc = osc;
+
     program_start_time = QDateTime::currentDateTime();
+    connect(&eye_tracker_socket, &QTcpSocket::connected, this, &QCarViz::eye_tracker_connected);
+    connect(&eye_tracker_socket, &QTcpSocket::disconnected, this, &QCarViz::eye_tracker_disconnected);
+    connect(&eye_tracker_socket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(eye_tracker_error(QAbstractSocket::SocketError)));
+    connect(&eye_tracker_socket, &QTcpSocket::readyRead, this, &QCarViz::eye_tracker_read);
     if (start)
         QTimer::singleShot(500, this, SLOT(start()));
 }
@@ -164,6 +169,7 @@ bool QCarViz::tick() {
             gear_spinbox->setValue(car->gearbox.get_gear()+1);
         }
         if (keyboard_input.show_arrow()) {
+            qDebug() << "trigger arrow";
             trigger_arrow();
         }
         if (keyboard_input.keys_pressed.contains(Qt::Key_O)) // steering to the left
@@ -264,6 +270,9 @@ bool QCarViz::tick() {
         } else {
             car->throttle = throttle_slider->value() / 100.;
             car->braking = breaking_slider->value() / 100.;
+        }
+        if (keyboard_input.connect()) {
+            connect_to_eyetracker();
         }
         speedObserver->tick();
         emit slow_tick(elapsed - last_elapsed, elapsed, consumption_monitor);

@@ -8,3 +8,4 @@ debug/*
 old/*
 media/*
 *.pro.user*
+build/*
