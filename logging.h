@@ -3,6 +3,7 @@
 
 #include <QList>
 #include "car.h"
+#include "qcarviz.h"
 #include "track.h"
 #include "misc.h"
 
@@ -14,22 +15,24 @@ struct LogItem
     qreal braking;
     int gear;
     QPointF eye_tracker_point;
+    qreal steering;
     qreal dt;
 };
 
 struct Log
 {
-    Log(Car* car, Track* track) : car(car), track(track) {}
+    Log(Car* car, QCarViz* car_viz, Track* track) : car(car), car_viz(car_viz), track(track) {}
 
-    void add_item(qreal throttle, qreal braking, int gear, const QPointF& eye_tracking_point, qreal dt) {
+    void add_item(qreal throttle, qreal braking, int gear, qreal dt) {
         //LogItem i = { throttle, braking, gear, dt };
-        items.append({ throttle, braking, gear, eye_tracking_point, dt });
+        items.append({ throttle, braking, gear, car_viz->eye_tracker_point, car_viz->steering, dt });
     }
 
     bool save(const QString filename) const { return saveObj(filename, *this); }
     bool load(const QString filename) { return loadObj(filename, *this); }
 
     Car* car;
+    QCarViz* car_viz;
     Track* track;
     QList<LogItem> items;
     qreal elapsed_time = 0;

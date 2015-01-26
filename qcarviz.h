@@ -50,6 +50,7 @@ class QCarViz : public QWidget
 public:
     friend struct SpeedObserver;
     friend struct TurnSignObserver;
+    friend struct Log;
     QCarViz(QWidget *parent = 0);
 
     void init(Car* car, QPushButton* start_button, QSlider* throttle, QSlider* breaking, QSpinBox* gear, QMainWindow* main_window, OSCSender* osc, bool start = true);

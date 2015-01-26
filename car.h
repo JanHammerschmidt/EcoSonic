@@ -27,7 +27,7 @@ public:
 
     // throttle: (0..1), alpha: up/downhill [rad]
     // returns acceleration [m/s^2]
-    qreal tick(qreal const dt, qreal alpha, const QPointF& eye_tracking_point, bool replay);
+    qreal tick(qreal const dt, qreal const alpha, bool const replay);
 
     qreal mass; // [kg]
     qreal speed = 0; // [m/s]

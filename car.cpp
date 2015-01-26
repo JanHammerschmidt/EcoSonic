@@ -2,6 +2,7 @@
 #include <QDateTime>
 #include "car.h"
 #include "logging.h"
+#include "qcarviz.h"
 
 void Car::save_log(QDateTime& program_start_time) {
     Q_ASSERT(log != nullptr);
@@ -9,14 +10,14 @@ void Car::save_log(QDateTime& program_start_time) {
     log.reset();
 }
 
-qreal Car::tick(qreal const dt, qreal alpha, const QPointF& eye_tracking_point, bool replay)
+qreal Car::tick(qreal const dt, qreal const alpha, bool const replay)
 {
     if (dt <= 0)
         return 0;
 
     //logging
     if (log && !replay) {
-        log->add_item(throttle, braking, gearbox.get_gear(), eye_tracking_point, dt);
+        log->add_item(throttle, braking, gearbox.get_gear(), dt);
     }
 
     // get forward force

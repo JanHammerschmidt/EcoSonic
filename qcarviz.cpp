@@ -100,7 +100,7 @@ void QCarViz::start() {
 
 bool QCarViz::load_log(const QString filename) {
     std::shared_ptr<Log>& log = car->log;
-    log.reset(new Log(car, &track));
+    log.reset(new Log(car, this, &track));
     const bool ret = loadObj(filename, *log);
     if (ret) {
         if (!log->valid) {
@@ -232,7 +232,7 @@ bool QCarViz::tick() {
         if (!track_started && car->throttle > 0) {
             track_started = true;
             track_started_time = time_delta.get_elapsed();
-            car->log.reset(new Log(car, &track));
+            car->log.reset(new Log(car, this, &track));
             car->log->initial_angular_velocity = car->engine.angular_velocity;
         }
     }
@@ -241,7 +241,7 @@ bool QCarViz::tick() {
     const qreal alpha_scale = 0.8;
     const qreal alpha = !track_path.length() ? 0 : (alpha_scale * atan(-track_path.slopeAtPercent(track_path.percentAtLength(current_pos)))); // slope [rad]
     Q_ASSERT(!isnan(alpha));
-    car->tick(dt, alpha, eye_tracker_point, replay);
+    car->tick(dt, alpha, replay);
     if (track_started) {
         consumption_monitor.tick(car->engine.get_consumption_L_s(), dt, car->speed);
     } else {
