@@ -1,12 +1,3 @@
-//#include <QTcpSocket>
-
-//class TrackerServer;
-
-//extern TrackerServer* tracker_server;
-
-//extern qintptr gSocketDescriptor;
-//extern QTcpServer* server;
-
 #pragma once
 
 #include <QObject>
@@ -30,8 +21,8 @@ public:
 
 #ifndef WIN32
 
-    bool StartTracker() { }
-    bool StopTracker() { }
+    bool StartTracker() { return false; }
+    bool StopTracker() { return false; }
 
 #else
 
@@ -76,7 +67,4 @@ public:
 #endif // WIN32
 
 };
-
-//bool StartTracker();
-//bool StopTracker();
 

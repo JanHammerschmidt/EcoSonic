@@ -9,14 +9,14 @@ void Car::save_log(QDateTime& program_start_time) {
     log.reset();
 }
 
-qreal Car::tick(qreal const dt, qreal alpha, bool replay)
+qreal Car::tick(qreal const dt, qreal alpha, const QPointF& eye_tracking_point, bool replay)
 {
     if (dt <= 0)
         return 0;
 
     //logging
     if (log && !replay) {
-        log->add_item(throttle, braking, gearbox.get_gear(), dt);
+        log->add_item(throttle, braking, gearbox.get_gear(), eye_tracking_point, dt);
     }
 
     // get forward force

@@ -1,20 +1,6 @@
-/*
- * This is an example that demonstrates how to connect to the EyeX Engine and subscribe to the lightly filtered gaze data stream.
- *
- * Copyright 2013-2014 Tobii Technology AB. All rights reserved.
-*/
+#ifdef WIN32
 
 #include "gaze.h"
-//#include "TrackerServer.h"
-
-//qintptr gSocketDescriptor = 0;
-//TrackerServer* tracker_server = nullptr;
-
-//QTcpSocket gSocket;
-
-//gSocket.isOpen()
-
-#ifdef WIN32
 
 #include <assert.h>
 
@@ -29,7 +15,9 @@ static TX_HANDLE g_hGlobalInteractorSnapshot = TX_EMPTY_HANDLE;
 TobiiTracker* gTracker = nullptr;
 
 
-TobiiTracker::TobiiTracker() { gTracker = this; }
+TobiiTracker::TobiiTracker() {
+    gTracker = this;
+}
 /*
  * Initializes g_hGlobalInteractorSnapshot with an interactor that has the Gaze Point behavior.
  */
@@ -110,19 +98,6 @@ void TobiiTracker::OnGazeDataEvent(TX_HANDLE hGazeDataBehavior)
 {
     TX_GAZEPOINTDATAEVENTPARAMS eventParams;
     if (txGetGazePointDataEventParams(hGazeDataBehavior, &eventParams) == TX_RESULT_OK) {
-//        if (tracker_server != nullptr && tracker_server->socket.isOpen()) {
-//            printf("sending!\n");
-//            tracker_server->socket.write("yay!");
-//        }
-//            if (!gSocket.isOpen() && gSocketDescriptor != 0) {
-//                printf("opening socket\n");
-//                gSocket.setSocketDescriptor(gSocketDescriptor);
-//            }
-//            if (gSocket.isOpen()) {
-//                printf("sending stuff..\n");
-//                gSocket.write("yay!");
-//            }
-        //*server_out <<
         //printf("Gaze Data: (%.1f, %.1f) timestamp %.0f ms\n", eventParams.X, eventParams.Y, eventParams.Timestamp);
         emit gaze_event(eventParams.X, eventParams.Y);
     } else {
@@ -193,20 +168,5 @@ bool TobiiTracker::StopTracker()
     }
     return success;
 }
-
-///*
-// * Application entry point.
-// */
-//int main(int argc, char* argv[])
-//{
-//    StartTracker();
-//	printf("Press any key to exit...\n");
-//	_getch();
-//	printf("Exiting.\n");
-//    StopTracker();
-
-
-//	return 0;
-//}
 
 #endif //WIN32

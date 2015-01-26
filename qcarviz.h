@@ -125,16 +125,23 @@ protected slots:
         const qint64 size = std::min((avail/chunk_size) * chunk_size, (qint64) sizeof(raw_data));
         eye_tracker_socket.read(raw_data, size);
         double* data = (double*) &raw_data[size-chunk_size];
-        qDebug() << data[0] << data[1];
-
-//        if (eye_tracker_socket.canReadLine()) {
-//            char test[20];
-//            eye_tracker_socket.readLine(test, 10);
-//            qDebug() << test;
-//        }
+        //qDebug() << data[0] << data[1];
+        eye_tracker_point.setX(data[0]);
+        eye_tracker_point.setY(data[1]);
+        globalToLocalCoordinates(eye_tracker_point);
     }
 
 protected:
+
+    void globalToLocalCoordinates(QPointF &pos) const
+    {
+        const QWidget* w = this;
+        while (w) {
+            pos.rx() -= w->geometry().x();
+            pos.ry() -= w->geometry().y();
+            w = w->isWindow() ? 0 : w->parentWidget();
+        }
+    }
 
     void fill_trees() {
         trees.clear();
@@ -182,7 +189,7 @@ protected:
             eye_tracker_socket.close();
         } else {
             qDebug() << "connecting...";
-            eye_tracker_socket.connectToHost("129.70.135.115", 7767);
+            eye_tracker_socket.connectToHost("127.0.0.1", 7767);
         }
     }
 
@@ -256,6 +263,7 @@ protected:
 //    qreal turn_sign_length = 0;
 //    qreal current_turn_sign_length = 0;
     QTcpSocket eye_tracker_socket;
+    QPointF eye_tracker_point;
 };
 
 

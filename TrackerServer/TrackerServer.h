@@ -22,7 +22,6 @@ protected:
     {
         qDebug() << "incoming connection";
         //pauseAccepting();
-        //gSocketDescriptor = socketDescriptor;
         socket.setSocketDescriptor(socketDescriptor);
 
         //QTcpServer::incomingConnection(socketDescriptor);
@@ -31,7 +30,6 @@ protected:
 protected slots:
     void disconnect() {
         qDebug() << "disconnect";
-        //gSocketDescriptor = 0;
         socket.abort();
         //resumeAccepting();
     }

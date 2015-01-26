@@ -3,6 +3,9 @@
 #include "speed_observer.h"
 #include "logging.h"
 
+#define DRAW_ARROW_SIGN 2 // 0: simple arrow 1: arrow sign 2: "street"-arrow 3: curved "street"-arrow
+#define SHOW_EYETRACKER_POINT
+
 QCarViz::QCarViz(QWidget *parent)
     : QWidget(parent)
 {
@@ -238,7 +241,7 @@ bool QCarViz::tick() {
     const qreal alpha_scale = 0.8;
     const qreal alpha = !track_path.length() ? 0 : (alpha_scale * atan(-track_path.slopeAtPercent(track_path.percentAtLength(current_pos)))); // slope [rad]
     Q_ASSERT(!isnan(alpha));
-    car->tick(dt, alpha, replay);
+    car->tick(dt, alpha, eye_tracker_point, replay);
     if (track_started) {
         consumption_monitor.tick(car->engine.get_consumption_L_s(), dt, car->speed);
     } else {
@@ -356,9 +359,6 @@ void QCarViz::draw(QPainter& painter)
         tree_types[tree.type].draw_scaled(painter, tree_pos, Gearbox::speed2kmh(car->speed), tree.scale);
     }
 
-
-#define DRAW_ARROW_SIGN 2 // 0: simple arrow 1: arrow sign 2: "street"-arrow 3: curved "street"-arrow
-
     // draw an arrow
     //printf("%s ", show_arrow == Arrow::None ? "None" : (show_arrow == Arrow::Left ? "Left" : "Right"));
 #if (DRAW_ARROW_SIGN < 2)
@@ -432,4 +432,12 @@ void QCarViz::draw(QPainter& painter)
 #endif
         painter.setOpacity(2.0);
     }
+#ifdef SHOW_EYETRACKER_POINT
+    //eye_tracker_point = QCursor::pos();
+    globalToLocalCoordinates(eye_tracker_point);
+    painter.setTransform(QTransform());
+    painter.setBrush(Qt::NoBrush);
+    painter.setPen(Qt::black);
+    painter.drawEllipse(eye_tracker_point, 10, 10);
+#endif
 }
