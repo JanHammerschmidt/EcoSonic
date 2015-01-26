@@ -39,8 +39,10 @@ public:
         , rolling_circumference(193)
         , wheel_radius(0.216)
     {
-        qreal g[] = {3.266, 2.130, 1.517, 1.147, 0.921, 0.738}; // übersetzungen
-        qreal mf[] = {1.4,1.28,1.15,1.1,1.07,1.06}; // massenfaktoren
+//        qreal g[] = {3.266, 2.130, 1.517, 1.147, 0.921, 0.738}; // übersetzungen
+//        qreal mf[] = {1.4,1.28,1.15,1.1,1.07,1.06}; // massenfaktoren
+        qreal g[] = {3.266, 1.85, 1.15, 0.82, 0.6}; // übersetzungen
+        qreal mf[] = {1.32, 1.15, 1.1, 1.07, 1.05}; // massenfaktoren
         gears.resize(ARR_SIZE(g));
         memcpy(gears.data(), g, sizeof(g));
         mass_factors.resize(ARR_SIZE(mf));

@@ -219,8 +219,8 @@ int main(int argc, char *argv[])
     if (c == 2) {
         //QRect r = d.availableGeometry();
         //QRect r1 = d.availableGeometry(0);
-        QRect r2 = d.availableGeometry(1);
-        //w.move(r2.center() - QPoint(w.width() / 2, 0)); //, w.height() / 2));
+//            QRect r2 = d.availableGeometry(1);
+//            w.move(r2.center() - QPoint(w.width() / 2, 0)); //, w.height() / 2));
         //hw.move(r1.center() - QPoint(hw.width() / 2, 0)); //, hw.height() / 2));
     }
 
