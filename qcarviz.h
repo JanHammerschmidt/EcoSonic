@@ -53,6 +53,11 @@ public:
     friend struct Log;
     QCarViz(QWidget *parent = 0);
 
+    virtual ~QCarViz() {
+        eye_tracker_socket.abort();
+        eye_tracker_socket.close();
+    }
+
     void init(Car* car, QPushButton* start_button, QSlider* throttle, QSlider* breaking, QSpinBox* gear, QMainWindow* main_window, OSCSender* osc, bool start = true);
 
     void copy_from_track_editor(QTrackEditor* track_editor);
@@ -116,10 +121,11 @@ protected slots:
         qDebug() << "eye Tracker Socket ERROR:" << error;
     }
 
-    void eye_tracker_read() {
+    void eye_tracker_read()
+    {
         static const qint64 chunk_size = sizeof(double)*2;
         char raw_data[chunk_size*50];
-        qDebug() << "eye Tracker Socket read";
+        //qDebug() << "eye Tracker Socket read";
         qint64 avail = eye_tracker_socket.bytesAvailable();
         if (avail < chunk_size)
             return;
@@ -129,7 +135,9 @@ protected slots:
         //qDebug() << data[0] << data[1];
         eye_tracker_point.setX(data[0]);
         eye_tracker_point.setY(data[1]);
+        //qDebug() << eye_tracker_point;
         globalToLocalCoordinates(eye_tracker_point);
+        //qDebug() << eye_tracker_point;
     }
 
 protected:
@@ -190,7 +198,8 @@ protected:
             eye_tracker_socket.close();
         } else {
             qDebug() << "connecting...";
-            eye_tracker_socket.connectToHost("127.0.0.1", 7767);
+            eye_tracker_socket.connectToHost("192.168.0.10", 7767);
+            eye_tracker_socket.waitForConnected(2000);
         }
     }
 

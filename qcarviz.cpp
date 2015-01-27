@@ -172,7 +172,7 @@ bool QCarViz::tick() {
             gear_spinbox->setValue(car->gearbox.get_gear()+1);
         }
         if (keyboard_input.show_arrow()) {
-            qDebug() << "trigger arrow";
+            //qDebug() << "trigger arrow";
             trigger_arrow();
         }
         if (keyboard_input.keys_pressed.contains(Qt::Key_O)) // steering to the left
@@ -191,9 +191,6 @@ bool QCarViz::tick() {
 //    }
     }
     qreal t = time_elapsed();
-    // automatic clutch control
-    if (track_started)
-        car->gearbox.auto_clutch_control(car);
 
     // sound modus (supercollider)
     update_sound_modus(keyboard_input.get_sound_modus());
@@ -237,6 +234,10 @@ bool QCarViz::tick() {
         }
     }
     turnSignObserver->tick(t, dt);
+
+    // automatic clutch control
+    if (track_started)
+        car->gearbox.auto_clutch_control(car);
 
     const qreal alpha_scale = 0.8;
     const qreal alpha = !track_path.length() ? 0 : (alpha_scale * atan(-track_path.slopeAtPercent(track_path.percentAtLength(current_pos)))); // slope [rad]
@@ -434,7 +435,7 @@ void QCarViz::draw(QPainter& painter)
     }
 #ifdef SHOW_EYETRACKER_POINT
     //eye_tracker_point = QCursor::pos();
-    globalToLocalCoordinates(eye_tracker_point);
+    //globalToLocalCoordinates(eye_tracker_point);
     painter.setTransform(QTransform());
     painter.setBrush(Qt::NoBrush);
     painter.setPen(Qt::black);

@@ -18,6 +18,8 @@ LIBS += -L../../lib/TobiiSDK/lib/x64  # -lTobii.EyeX.Client
 
 TEMPLATE = app
 
+DEPENDPATH += . \
+    ./lib
 
 SOURCES += main.cpp \
     gaze.cpp

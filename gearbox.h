@@ -96,6 +96,19 @@ public:
         return rpm * 60; // [u/min]
     }
 
+    void tick(qreal dt) {
+        t += dt;
+        clutch.update(dt);
+    }
+
+//    toggle_clutch() {
+//        if (clutch.engage())
+//            clutch.disengage();
+//        else {
+
+//        }
+//    }
+
     // (only clutching in!)
     void auto_clutch_control(Car* car);
 
@@ -115,7 +128,6 @@ public:
 
     // returns [N]
     qreal torque2force_engine2wheels(Engine& engine, const qreal speed, const qreal dt) {
-        clutch.update(dt);
         if (clutch.acting()) {
             engine.torque_counter = clutch.counter_torque(engine, this, speed, dt);
         } else if (clutch.engage) // clutch is (fully) engaged
@@ -142,19 +154,20 @@ public:
 //        return engine.torque_counter * gears[gear] * end_transmission / wheel_radius;
     }
 
-    void gear_up() {
-        gear = std::min(gear+1, gears.size()-1);
-        emit gear_changed(gear);
-    }
-    void gear_down() {
-        gear = std::max(gear -1, 0);
-        emit gear_changed(gear);
-    }
+    void gear_up() { set_gear(std::min(gear+1, gears.size()-1)); }
+    void gear_down() { set_gear(std::max(gear -1, 0)); }
     void set_gear(int gear) {
         const bool changed = this->gear != gear;
         this->gear = gear;
-        if (changed)
+        if (changed) {
+            clutch.disengage();
+            if (!gear_change())
+                t = 0;
             emit gear_changed(gear);
+        }
+    }
+    bool gear_change() { // gear change in progress
+        return t <= t_gear_change;
     }
     int get_gear() { return gear; }
 
@@ -179,6 +192,7 @@ signals:
 
 private:
     int gear;
+    qreal gear_change_start = false;
 public:
     QVector<qreal> gears; // gear-transmissions
     QVector<qreal> mass_factors;
@@ -186,18 +200,18 @@ public:
     qreal rolling_circumference; // cm
     qreal wheel_radius; // m
     Clutch clutch;
-    //qreal clutch; // (0..1)
-    //qreal clutch_max_rpm_diff = 4000;
+    qreal t_gear_change = 0.3; // duration of a gear change
+    qreal t = t_gear_change; // accumulated time since last gear change
 };
 
 inline QDataStream &operator<<(QDataStream &out, const Gearbox &g)
 {
-    out << g.gears << g.mass_factors << g.end_transmission << g.rolling_circumference << g.wheel_radius << g.clutch.t_shift;
+    out << g.gears << g.mass_factors << g.end_transmission << g.rolling_circumference << g.wheel_radius << g.t_gear_change << g.clutch.t_shift;
     return out;
 }
 
 inline QDataStream &operator>>(QDataStream &in, Gearbox &g) {
-    in >> g.gears >> g.mass_factors >> g.end_transmission >> g.rolling_circumference >> g.wheel_radius >> g.clutch.t_shift;
+    in >> g.gears >> g.mass_factors >> g.end_transmission >> g.rolling_circumference >> g.wheel_radius >> g.t_gear_change >> g.clutch.t_shift;
     g.clutch.t = g.clutch.t_shift;
     return in;
 }

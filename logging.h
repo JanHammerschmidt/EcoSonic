@@ -7,7 +7,7 @@
 #include "track.h"
 #include "misc.h"
 
-#define LOG_VERSION "1.2"
+#define LOG_VERSION "1.3"
 
 struct LogItem
 {

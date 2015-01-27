@@ -14,6 +14,6 @@ Engine::Engine(qreal const max_rpm, qreal const max_torque)
 
 
 void Gearbox::auto_clutch_control(Car* car) {
-    if (!clutch.engage && car->engine.rpm() > 1000)
+    if (!clutch.engage && car->engine.rpm() > 1000 && !gear_change())
         clutch.clutch_in(car->engine, &car->gearbox, car->speed);
 }

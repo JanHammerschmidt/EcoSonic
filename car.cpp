@@ -22,7 +22,8 @@ qreal Car::tick(qreal const dt, qreal const alpha, bool const replay)
 
     // get forward force
     Q_ASSERT(!isnan(engine.angular_velocity));
-    engine.update_torque(throttle);
+    gearbox.tick(dt);
+    engine.update_torque(gearbox.gear_change() ? 0 : throttle);
     qreal F = gearbox.torque2force_engine2wheels(engine, speed, dt);
     current_wheel_force = F;
 
