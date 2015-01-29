@@ -127,8 +127,10 @@ public:
     QCarViz(QWidget *parent = 0);
 
     virtual ~QCarViz() {
-        eye_tracker_client->disconnect();
-        eye_tracker_client->wait(500);
+        if (eye_tracker_client != nullptr) {
+            eye_tracker_client->disconnect();
+            eye_tracker_client->wait(500);
+        }
     }
 
     void init(Car* car, QPushButton* start_button, QSlider* throttle, QSlider* breaking, QSpinBox* gear, QMainWindow* main_window, OSCSender* osc, bool start = true);
@@ -183,42 +185,6 @@ protected slots:
 
     bool tick();
 
-//    void eye_tracker_connected() {
-//        qDebug() << "eye Tracker Socket connected";
-//        first_read = true;
-//        QApplication::flush();
-//    }
-//    void eye_tracker_disconnected() {
-//        qDebug() << "eye Tracker Socket disconnected";
-//    }
-
-//    void eye_tracker_error(QAbstractSocket::SocketError error) {
-//        qDebug() << "eye Tracker Socket ERROR:" << error;
-//    }
-
-//    void eye_tracker_read()
-//    {
-//        if (first_read) {
-//            first_read = false;
-//            qDebug() << "reading";
-//        }
-//        static const qint64 chunk_size = sizeof(double)*2;
-//        char raw_data[chunk_size*50];
-//        //qDebug() << "eye Tracker Socket read";
-//        qint64 avail = eye_tracker_socket.bytesAvailable();
-//        if (avail < chunk_size)
-//            return;
-//        const qint64 size = std::min((avail/chunk_size) * chunk_size, (qint64) sizeof(raw_data));
-//        eye_tracker_socket.read(raw_data, size);
-//        double* data = (double*) &raw_data[size-chunk_size];
-//        //qDebug() << data[0] << data[1];
-//        eye_tracker_point.setX(data[0]);
-//        eye_tracker_point.setY(data[1]);
-//        //qDebug() << eye_tracker_point;
-//        globalToLocalCoordinates(eye_tracker_point);
-//        //qDebug() << eye_tracker_point;
-//    }
-
 public:
 
     void globalToLocalCoordinates(QPointF &pos) const
@@ -233,7 +199,10 @@ public:
 
     void set_eye_tracker_point(QPointF& p) {
         // could me made thread-safe..
-        eye_tracker_point = p;
+        if (!replay) {
+            eye_tracker_point = p;
+            t_last_eye_tracking_update = time_elapsed();
+        }
     }
 
 protected:
@@ -374,6 +343,7 @@ protected:
 //    qreal turn_sign_length = 0;
 //    qreal current_turn_sign_length = 0;
     QPointF eye_tracker_point;
+    qreal t_last_eye_tracking_update = 0;
 //    QTcpSocket eye_tracker_socket;
 //    bool first_read = true;
     EyeTrackerClient* eye_tracker_client = nullptr;

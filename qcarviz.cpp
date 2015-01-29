@@ -40,7 +40,6 @@ QCarViz::QCarViz(QWidget *parent)
     flash_timer.start();
 
     qDebug() << QDir::currentPath();
-    //printf("%s\n", QDir::currentPath().toStdString().c_str());
 
     add_tree_type("tree", 0.2/3, 50*3);
     add_tree_type("birch", 0.08, 140);
@@ -72,10 +71,7 @@ void QCarViz::init(Car* car, QPushButton* start_button, QSlider* throttle, QSlid
     this->osc = osc;
 
     program_start_time = QDateTime::currentDateTime();
-//    connect(&eye_tracker_socket, &QTcpSocket::connected, this, &QCarViz::eye_tracker_connected);
-//    connect(&eye_tracker_socket, &QTcpSocket::disconnected, this, &QCarViz::eye_tracker_disconnected);
-//    connect(&eye_tracker_socket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(eye_tracker_error(QAbstractSocket::SocketError)));
-//    connect(&eye_tracker_socket, &QTcpSocket::readyRead, this, &QCarViz::eye_tracker_read);
+
     if (start)
         QTimer::singleShot(500, this, SLOT(start()));
 }
@@ -132,8 +128,8 @@ bool QCarViz::load_log(const QString filename) {
             //printf("wrong version!\n");
             return false;
         }
-        printf("log: elapsed_time: %.3f\n", log->elapsed_time);
-        printf("log: deciliters_used: %.4f\n", log->liters_used * 10);
+        qDebug() << "log: elapsed_time:" << log->elapsed_time;
+        qDebug() << "log: deciliters_used:" << log->liters_used * 10;
 //        printf("log: items: %i\n", log->items.size());
         this->sound_modus = log->sound_modus;
         prepare_track();
@@ -165,8 +161,8 @@ bool QCarViz::tick() {
     user_steering = 0; // user steering (or from replay)
     if (replay == true) {
         if (replay_index >= car->log->items.size()) {
-            //printf("elapsed_time: %.3f\n", time_delta.get_elapsed() - track_started_time);
-            //printf("deciliters_used: %.4f\n", consumption_monitor.liters_used * 10);
+            qDebug() << "elapsed_time:" << time_elapsed();
+            qDebug() << "deciliters_used:" << consumption_monitor.liters_used;
             stop();
             return false;
         }
@@ -177,8 +173,6 @@ bool QCarViz::tick() {
         car->throttle = log_item.throttle;
         eye_tracker_point = log_item.eye_tracker_point;
         user_steering = log_item.steering;
-        if (log_item.steering != 0)
-            qDebug() << log_item.steering;
         changed = true;
         replay_index++;
         time_delta.add_dt(dt);
@@ -283,7 +277,7 @@ bool QCarViz::tick() {
     if (!replay && track_path.length() > initial_pos && current_pos >= track_path.length()) {
         stop();
 		Q_ASSERT(car->log != nullptr);
-        car->log->elapsed_time = time_elapsed();
+        car->log->elapsed_time = t;
         car->log->liters_used = consumption_monitor.liters_used;
         car->log->sound_modus = sound_modus;
         car->save_log(program_start_time);
@@ -297,6 +291,7 @@ bool QCarViz::tick() {
     static qreal last_elapsed = 0;
     qreal elapsed = time_delta.get_elapsed();
     if (elapsed - last_elapsed > 0.05) {
+        qDebug() << "slow tick" << elapsed << last_elapsed;
         if (changed) {
             throttle_slider->setValue(car->throttle * 100);
             breaking_slider->setValue(car->braking * 100);
@@ -309,6 +304,10 @@ bool QCarViz::tick() {
             connect_to_eyetracker();
         }
         speedObserver->tick();
+        if (!replay) {
+            if (t - t_last_eye_tracking_update > 1)
+                ::new(&eye_tracker_point) QPointF();
+        }
         emit slow_tick(elapsed - last_elapsed, elapsed, consumption_monitor);
         last_elapsed = elapsed;
     }
