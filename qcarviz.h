@@ -42,6 +42,79 @@ static std::mt19937_64 rng(std::random_device{}());
 
 struct SpeedObserver;
 struct TurnSignObserver;
+class QCarViz;
+
+struct EyeTrackerClient : public QThread
+{
+    Q_OBJECT
+
+    typedef QAbstractSocket::SocketError SocketError;
+
+signals:
+
+    void destroyed();
+
+public:
+    EyeTrackerClient(QCarViz* car_viz)
+        : car_viz(car_viz)
+    { }
+
+    void disconnect() {
+        quit = true;
+    }
+
+    void run() override {
+        connect(this, &QThread::finished, this, &EyeTrackerClient::finish);
+        socket.reset(new QTcpSocket());
+        connect(socket.get(), &QTcpSocket::disconnected, this, &EyeTrackerClient::disconnected);
+        connect(socket.get(), static_cast<void (QTcpSocket::*)(QAbstractSocket::SocketError)> (&QTcpSocket::error),
+                [&](QAbstractSocket::SocketError error)
+        {
+            if (!(socket->isOpen() && error == QAbstractSocket::SocketTimeoutError))
+            qDebug() << "eye Tracker Socket ERROR:" << error;
+        });
+            //, &EyeTrackerClient::tcp_error(SocketAccessError));
+
+        qDebug() << "connecting...";
+        //socket->connectToHost("127.0.0.1", 7767);
+        socket->connectToHost("192.168.0.10", 7767);
+        if (!socket->waitForConnected(2000)) {
+            qDebug() << "connecting failed!";
+            return;
+        }
+        while (!quit) {
+            if (socket->waitForReadyRead(100))
+                read();
+        }
+        socket->abort();
+        socket->close();
+        qDebug() << "stopping eye tracker thread";
+    }
+
+//    void destroy() {
+
+//    }
+
+protected slots:
+    void disconnected() {
+        qDebug() << "eye Tracker Socket disconnected";
+        quit = true;
+    }
+
+    void finish() {
+        emit destroyed();
+        deleteLater();
+    }
+
+protected:
+    void read();
+
+    QCarViz* car_viz;
+    //QTcpSocket socket;
+    std::auto_ptr<QTcpSocket> socket;
+    bool first_read = true;
+    bool quit = false;
+};
 
 class QCarViz : public QWidget
 {
@@ -54,8 +127,8 @@ public:
     QCarViz(QWidget *parent = 0);
 
     virtual ~QCarViz() {
-        eye_tracker_socket.abort();
-        eye_tracker_socket.close();
+        eye_tracker_client->disconnect();
+        eye_tracker_client->wait(500);
     }
 
     void init(Car* car, QPushButton* start_button, QSlider* throttle, QSlider* breaking, QSpinBox* gear, QMainWindow* main_window, OSCSender* osc, bool start = true);
@@ -110,37 +183,43 @@ protected slots:
 
     bool tick();
 
-    void eye_tracker_connected() {
-        qDebug() << "eye Tracker Socket connected";
-    }
-    void eye_tracker_disconnected() {
-        qDebug() << "eye Tracker Socket disconnected";
-    }
+//    void eye_tracker_connected() {
+//        qDebug() << "eye Tracker Socket connected";
+//        first_read = true;
+//        QApplication::flush();
+//    }
+//    void eye_tracker_disconnected() {
+//        qDebug() << "eye Tracker Socket disconnected";
+//    }
 
-    void eye_tracker_error(QAbstractSocket::SocketError error) {
-        qDebug() << "eye Tracker Socket ERROR:" << error;
-    }
+//    void eye_tracker_error(QAbstractSocket::SocketError error) {
+//        qDebug() << "eye Tracker Socket ERROR:" << error;
+//    }
 
-    void eye_tracker_read()
-    {
-        static const qint64 chunk_size = sizeof(double)*2;
-        char raw_data[chunk_size*50];
-        //qDebug() << "eye Tracker Socket read";
-        qint64 avail = eye_tracker_socket.bytesAvailable();
-        if (avail < chunk_size)
-            return;
-        const qint64 size = std::min((avail/chunk_size) * chunk_size, (qint64) sizeof(raw_data));
-        eye_tracker_socket.read(raw_data, size);
-        double* data = (double*) &raw_data[size-chunk_size];
-        //qDebug() << data[0] << data[1];
-        eye_tracker_point.setX(data[0]);
-        eye_tracker_point.setY(data[1]);
-        //qDebug() << eye_tracker_point;
-        globalToLocalCoordinates(eye_tracker_point);
-        //qDebug() << eye_tracker_point;
-    }
+//    void eye_tracker_read()
+//    {
+//        if (first_read) {
+//            first_read = false;
+//            qDebug() << "reading";
+//        }
+//        static const qint64 chunk_size = sizeof(double)*2;
+//        char raw_data[chunk_size*50];
+//        //qDebug() << "eye Tracker Socket read";
+//        qint64 avail = eye_tracker_socket.bytesAvailable();
+//        if (avail < chunk_size)
+//            return;
+//        const qint64 size = std::min((avail/chunk_size) * chunk_size, (qint64) sizeof(raw_data));
+//        eye_tracker_socket.read(raw_data, size);
+//        double* data = (double*) &raw_data[size-chunk_size];
+//        //qDebug() << data[0] << data[1];
+//        eye_tracker_point.setX(data[0]);
+//        eye_tracker_point.setY(data[1]);
+//        //qDebug() << eye_tracker_point;
+//        globalToLocalCoordinates(eye_tracker_point);
+//        //qDebug() << eye_tracker_point;
+//    }
 
-protected:
+public:
 
     void globalToLocalCoordinates(QPointF &pos) const
     {
@@ -151,6 +230,13 @@ protected:
             w = w->isWindow() ? 0 : w->parentWidget();
         }
     }
+
+    void set_eye_tracker_point(QPointF& p) {
+        // could me made thread-safe..
+        eye_tracker_point = p;
+    }
+
+protected:
 
     void fill_trees() {
         trees.clear();
@@ -192,15 +278,28 @@ protected:
     }
 
     void connect_to_eyetracker() {
-        if (eye_tracker_socket.isOpen()) {
-            qDebug() << "disconnecting...";
-            eye_tracker_socket.abort();
-            eye_tracker_socket.close();
+        if (eye_tracker_client != nullptr) {
+            eye_tracker_client->disconnect();
+            eye_tracker_client = nullptr;
         } else {
-            qDebug() << "connecting...";
-            eye_tracker_socket.connectToHost("192.168.0.10", 7767);
-            eye_tracker_socket.waitForConnected(2000);
+            eye_tracker_client = new EyeTrackerClient(this);
+            connect(eye_tracker_client, &EyeTrackerClient::destroyed, [this](){
+                qDebug() << "eye_tracker_client = nullptr";
+                eye_tracker_client = nullptr;
+            });
+            eye_tracker_client->start();
         }
+//        if (eye_tracker_socket.isOpen()) {
+//            qDebug() << "disconnecting...";
+//            eye_tracker_socket.abort();
+//            eye_tracker_socket.close();
+//        } else {
+//            qDebug() << "connecting...";
+//            eye_tracker_socket.connectToHost("127.0.0.1", 7767);
+////            eye_tracker_socket.connectToHost("192.168.0.10", 7767);
+//            eye_tracker_socket.waitForConnected(2000);
+//            //eye_tracker_socket.waitForReadyRead(2000);
+//        }
     }
 
     void draw(QPainter& painter);
@@ -214,8 +313,9 @@ protected:
         QPainter painter(this);
         draw(painter);
 
-        if (started)
+        if (started) {
             update();
+        }
     }
 
     void add_tree_type(const QString name, const qreal scale, const qreal y_offset) {
@@ -270,10 +370,13 @@ protected:
     std::auto_ptr<QSvgRenderer> turn_sign;
     QRectF turn_sign_rect;
     qreal steering = 0; // between -1 (left) and 1 (right)
+    qreal user_steering = 0;
 //    qreal turn_sign_length = 0;
 //    qreal current_turn_sign_length = 0;
-    QTcpSocket eye_tracker_socket;
     QPointF eye_tracker_point;
+//    QTcpSocket eye_tracker_socket;
+//    bool first_read = true;
+    EyeTrackerClient* eye_tracker_client = nullptr;
 };
 
 

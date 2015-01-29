@@ -83,7 +83,7 @@ OSCdef(\msg_vol_down, {|m| ~fedi_stream_vol_add.value(-0.2)}, '/vol_down');
 	~slurp_lpf_play.value;
 	OSCdef(\msg_rpm, {|m|
 		~rpm_handler.value(m[1]); // still control the engine-sound!
-		if (~gear == 6, {~slurp_lpf.set(\m, 0)},{~slurp_lpf.set(\m, m[1].linlin(0.38,0.65, 0,1.2));});
+		if (~gear == 5, {~slurp_lpf.set(\m, 0)},{~slurp_lpf.set(\m, m[1].linlin(0.38,0.65, 0,1.2));});
 		//~lpf.set(\f, m[1].linlin(0.38,1, 400,15000));
 		//m[1].postln;
 	}, '/rpm');

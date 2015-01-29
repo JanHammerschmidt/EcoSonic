@@ -6,6 +6,30 @@
 #define DRAW_ARROW_SIGN 2 // 0: simple arrow 1: arrow sign 2: "street"-arrow 3: curved "street"-arrow
 #define SHOW_EYETRACKER_POINT
 
+void EyeTrackerClient::read()
+{
+    if (first_read) {
+        first_read = false;
+        qDebug() << "reading";
+    }
+    static const qint64 chunk_size = sizeof(double)*2;
+    char raw_data[chunk_size*50];
+    //qDebug() << "eye Tracker Socket read";
+    qint64 avail = socket->bytesAvailable();
+    if (avail < chunk_size)
+        return;
+    const qint64 size = std::min((avail/chunk_size) * chunk_size, (qint64) sizeof(raw_data));
+    socket->read(raw_data, size);
+    double* data = (double*) &raw_data[size-chunk_size];
+    //qDebug() << data[0] << data[1];
+    QPointF eye_tracker_point(data[0], data[1]);
+    //qDebug() << eye_tracker_point;
+    car_viz->globalToLocalCoordinates(eye_tracker_point);
+    car_viz->set_eye_tracker_point(eye_tracker_point);
+    //qDebug() << eye_tracker_point;
+}
+
+
 QCarViz::QCarViz(QWidget *parent)
     : QWidget(parent)
 {
@@ -48,10 +72,10 @@ void QCarViz::init(Car* car, QPushButton* start_button, QSlider* throttle, QSlid
     this->osc = osc;
 
     program_start_time = QDateTime::currentDateTime();
-    connect(&eye_tracker_socket, &QTcpSocket::connected, this, &QCarViz::eye_tracker_connected);
-    connect(&eye_tracker_socket, &QTcpSocket::disconnected, this, &QCarViz::eye_tracker_disconnected);
-    connect(&eye_tracker_socket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(eye_tracker_error(QAbstractSocket::SocketError)));
-    connect(&eye_tracker_socket, &QTcpSocket::readyRead, this, &QCarViz::eye_tracker_read);
+//    connect(&eye_tracker_socket, &QTcpSocket::connected, this, &QCarViz::eye_tracker_connected);
+//    connect(&eye_tracker_socket, &QTcpSocket::disconnected, this, &QCarViz::eye_tracker_disconnected);
+//    connect(&eye_tracker_socket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(eye_tracker_error(QAbstractSocket::SocketError)));
+//    connect(&eye_tracker_socket, &QTcpSocket::readyRead, this, &QCarViz::eye_tracker_read);
     if (start)
         QTimer::singleShot(500, this, SLOT(start()));
 }
@@ -138,6 +162,7 @@ bool QCarViz::tick() {
     Q_ASSERT(started);
     qreal dt;
     static bool changed = false; // if throttle / gas have changed (for the sliders in the gui)
+    user_steering = 0; // user steering (or from replay)
     if (replay == true) {
         if (replay_index >= car->log->items.size()) {
             //printf("elapsed_time: %.3f\n", time_delta.get_elapsed() - track_started_time);
@@ -150,6 +175,10 @@ bool QCarViz::tick() {
         car->braking = log_item.braking;
         car->gearbox.set_gear(log_item.gear);
         car->throttle = log_item.throttle;
+        eye_tracker_point = log_item.eye_tracker_point;
+        user_steering = log_item.steering;
+        if (log_item.steering != 0)
+            qDebug() << log_item.steering;
         changed = true;
         replay_index++;
         time_delta.add_dt(dt);
@@ -176,9 +205,9 @@ bool QCarViz::tick() {
             trigger_arrow();
         }
         if (keyboard_input.keys_pressed.contains(Qt::Key_O)) // steering to the left
-            steer(dt); // "reduces" steering hint
+            user_steering += dt; // "reduces" steering hint
         if (keyboard_input.keys_pressed.contains(Qt::Key_P))
-            steer(-dt);
+            user_steering -= dt;
 
 //    // manual clutch control
 //    const bool toggle_clutch = keyboard_input.toggle_clutch();
@@ -223,7 +252,7 @@ bool QCarViz::tick() {
             }
             wingman_input.update_wheel();
             if (!wingman_input.wheel_neutral()) {
-                steer(-wingman_input.wheel() * dt * 1.5);
+                user_steering -= wingman_input.wheel() * dt * 1.5;
             }
         }
         if (!track_started && car->throttle > 0) {
@@ -233,6 +262,7 @@ bool QCarViz::tick() {
             car->log->initial_angular_velocity = car->engine.angular_velocity;
         }
     }
+    steer(user_steering);
     turnSignObserver->tick(t, dt);
 
     // automatic clutch control

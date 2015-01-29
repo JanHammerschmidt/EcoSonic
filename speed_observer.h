@@ -8,6 +8,7 @@
 #define MIN_DRIVING_DISTANCE 400 // ??
 #define TOO_SLOW_TOLERANCE 0.2
 #define TOO_FAST_TOLERANCE 0.1
+#define TOO_FAST_TOLERANCE_OFFSET 10
 #define MAX_TOO_FAST 2000 // ms
 #define MAX_TOO_SLOW 3000 // ms
 #define COOLDOWN_TIME 3000 // how long "nothing" happens after a honking (ms)
@@ -146,12 +147,12 @@ struct SpeedObserver {
         if (next_sign && next_sign->type == Track::Sign::TrafficLight && next_sign->traffic_light_state == Track::Sign::Red
                 && (next_sign->at_length - current_pos) < next_sign->traffic_light_info.trigger_distance)
         {
-            qDebug() << "trigger!";
+            qDebug() << "trigger traffic light";
             next_sign->traffic_light_state = Track::Sign::Red_pending;
             QtConcurrent::run(trigger_traffic_light, next_sign);
         }
         const qreal kmh = Gearbox::speed2kmh(carViz.car->speed);
-        const bool toofast = kmh > current_speed_limit * (1+TOO_FAST_TOLERANCE);
+        const bool toofast = kmh > current_speed_limit * (1+TOO_FAST_TOLERANCE) + TOO_FAST_TOLERANCE_OFFSET;
         bool tooslow = kmh < current_speed_limit * (1-TOO_SLOW_TOLERANCE);
         if (tooslow) {
             if (carViz.current_pos < MIN_DRIVING_DISTANCE)

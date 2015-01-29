@@ -18,7 +18,7 @@ struct Clutch
         this->engage = false;
     }
     bool acting() {
-        return engage && t <= t_shift;
+        return engage && t < t_shift;
     }
     void update(const double dt) { t += dt; }
 
@@ -160,14 +160,16 @@ public:
         const bool changed = this->gear != gear;
         this->gear = gear;
         if (changed) {
-            clutch.disengage();
-            if (!gear_change())
-                t = 0;
+            if (t_gear_change > 0) {
+                clutch.disengage();
+                if (!gear_change())
+                    t = 0;
+            }
             emit gear_changed(gear);
         }
     }
     bool gear_change() { // gear change in progress
-        return t <= t_gear_change;
+        return t < t_gear_change;
     }
     int get_gear() { return gear; }
 

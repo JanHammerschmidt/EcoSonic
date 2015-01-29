@@ -7,7 +7,7 @@
 #include "track.h"
 #include "misc.h"
 
-#define LOG_VERSION "1.3"
+#define LOG_VERSION "1.4"
 
 struct LogItem
 {
@@ -25,7 +25,7 @@ struct Log
 
     void add_item(qreal throttle, qreal braking, int gear, qreal dt) {
         //LogItem i = { throttle, braking, gear, dt };
-        items.append({ throttle, braking, gear, car_viz->eye_tracker_point, car_viz->steering, dt });
+        items.append({ throttle, braking, gear, car_viz->eye_tracker_point, car_viz->user_steering, dt });
     }
 
     bool save(const QString filename) const { return saveObj(filename, *this); }
@@ -45,11 +45,11 @@ struct Log
 
 
 inline QDataStream &operator<<(QDataStream &out, const LogItem &i) {
-    out << i.throttle << i.braking << i.gear << i.eye_tracker_point << i.dt;
+    out << i.throttle << i.braking << i.gear << i.eye_tracker_point << i.steering << i.dt;
     return out;
 }
 inline QDataStream &operator>>(QDataStream &in, LogItem &i) {
-    in >> i.throttle >> i.braking >> i.gear >> i.eye_tracker_point >> i.dt;
+    in >> i.throttle >> i.braking >> i.gear >> i.eye_tracker_point >> i.steering >> i.dt;
     return in;
 }
 

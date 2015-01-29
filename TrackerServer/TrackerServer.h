@@ -12,26 +12,14 @@ class TrackerServer : public QTcpServer
 
 public:
     TrackerServer() : QTcpServer() {
-        //connect(&socket, SIGNAL(disconnected()), this, SLOT(disconnect()));
         connect(this, &QTcpServer::newConnection, this, &TrackerServer::new_connection);
     }
-
-
-protected:
-
-//    virtual void incomingConnection(qintptr socketDescriptor) override
-//    {
-//        qDebug() << "incoming connection";
-//        //pauseAccepting();
-//        socket.setSocketDescriptor(socketDescriptor);
-
-//        //QTcpServer::incomingConnection(socketDescriptor);
-//    }
 
 protected slots:
     void new_connection()
     {
         qDebug() << "incoming connection..";
+        new_conn = true;
         pauseAccepting();
         if (socket != nullptr) {
             qDebug() << "WARNING: existing socket found!";
@@ -51,12 +39,15 @@ protected slots:
             socket = nullptr;
         }
         resumeAccepting();
-        //socket.abort();
     }
 public slots:
     void gaze_event(double x, double y) {
         //qDebug() << x << y;
         if (socket != nullptr && socket->isWritable()) {
+            if (new_conn) {
+                new_conn = false;
+                qDebug() << "sending...";
+            }
             //qDebug() << "write";
             char data[sizeof(double)*2];
             *((double*)&data[0]) = x;
@@ -67,8 +58,7 @@ public slots:
 
 protected:
     QTcpSocket* socket = nullptr;
-    //QTcpSocket socket;
+    bool new_conn = false;
 };
-
 
 #endif // TRACKERSERVER_H

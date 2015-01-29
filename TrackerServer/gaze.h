@@ -5,6 +5,9 @@
 #ifdef WIN32
 #include <windows.h>
 #include "eyex/EyeX.h"
+#else
+#include <QTimer>
+#include <random>
 #endif
 
 
@@ -21,10 +24,29 @@ public:
 
 #ifndef WIN32
 
-    bool StartTracker() { return false; }
+    TobiiTracker() {
+        connect(&timer, &QTimer::timeout, this, &TobiiTracker::timer_timeout);
+    }
+
+    bool StartTracker() {
+        timer.start();
+        return false;
+    }
     bool StopTracker() { return false; }
 
+    QTimer timer;
+
+protected slots:
+
+    void timer_timeout() {
+        static std::mt19937_64 rng(std::random_device{}());
+        static std::uniform_real_distribution<double> xy(0, 500);
+        emit gaze_event(xy(rng), xy(rng));
+    }
+
 #else
+
+public:
 
     TobiiTracker();
 
