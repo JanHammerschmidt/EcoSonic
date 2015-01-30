@@ -13,66 +13,16 @@
 #define MAX_TOO_SLOW 3000 // ms
 #define COOLDOWN_TIME 3000 // how long "nothing" happens after a honking (ms)
 
-struct TurnSignObserver {
-    struct TurnSignExecutor {
-        TurnSignExecutor(Track::Sign* sign, const qreal t0, QCarViz& car_viz)
-            : info(sign->steering_info), t0(t0), car_viz(car_viz)
-        {
-            info.left = (sign->type == Track::Sign::TurnLeft);
-            t_stages[0] = info.fade_in;
-            t_stages[1] = t_stages[0] + info.duration;
-            t_stages[2] = t_stages[1] + info.fade_out;
-        }
-        bool tick(const qreal t, const qreal dt) {
-            const qreal tt = t - t0;
-            if (tt > t_stages[stage]) {
-                stage++;
-                if (stage >= 3)
-                    return true;
-            }
-            qreal intensity = info.intensity * dt;
-            switch (stage) {
-                case 0: intensity *= tt / info.fade_in; break;
-                case 1: break;
-                case 2: intensity *= 1 - (tt - t_stages[1]) / info.fade_out; break;
-                default: Q_ASSERT(false);
-            }
-            //qDebug() << "stage " << stage << " steer " << intensity / dt;
-            car_viz.steer(intensity * (info.left ? -1 : 1));
-            return false;
-        }
-        Track::Sign::SteeringInfo& info;
-        const qreal t0;
-        QCarViz& car_viz;
-        int stage = 0;
-        qreal t_stages[3];
-    };
-
-    TurnSignObserver(QCarViz& carViz)
+class SignObserverBase
+{
+protected:
+    SignObserverBase(QCarViz& carViz)
         : track(carViz.track), carViz(carViz)
+    { }
+
+    void find_next_sign()
     {
-        find_next_sign();
-    }
-
-    void tick(const qreal t, const qreal dt) {
-        if (!!current_sign.get() && current_sign->tick(t, dt)) {
-            current_sign.reset();
-        }
-        if (!next_sign)
-            return;
-        const qreal current_pos = carViz.current_pos;
-        if (current_pos > next_sign->at_length) {
-            trigger(next_sign, t);
-            find_next_sign();
-        }
-    }
-    void trigger(Track::Sign* sign, qreal t0) {
-        Q_ASSERT(sign->is_turn_sign());
-        current_sign.reset(new TurnSignExecutor(sign, t0, carViz));
-    }
-
-    void find_next_sign() {
-        qDebug() << "find next sign!";
+        qDebug() << "find next sign";
         if (!track.signs.size())
             return;
         if (!next_sign)
@@ -82,22 +32,159 @@ struct TurnSignObserver {
         for ( ; ; next_sign++) {
             if (next_sign > &track.signs.last()) {
                 next_sign = nullptr;
-                break;
+                return;
             }
-            if (next_sign->type == Track::Sign::TurnLeft || next_sign->type == Track::Sign::TurnRight)
-                break;
+            for (auto t : types) {
+                if (next_sign->type == t) {
+                    trigger_distance = get_trigger_distance(next_sign);
+                    return;
+                }
+            }
         }
     }
+    virtual void trigger(Track::Sign* /*sign*/, qreal const /*t*/) { } // save infos for 'tick_current_sign'
+    virtual qreal get_trigger_distance(Track::Sign* /*sign*/) { return 0; }
+    virtual void init() = 0; // add type(s)
+    virtual bool tick_current_sign(const qreal /*t*/, const qreal /*dt*/) { return true; } // return true when finished
 
+public:
     inline void reset() {
         next_sign = nullptr;
         find_next_sign();
     }
-
+    virtual void tick(const qreal t, const qreal dt) {
+        if (current_sign && tick_current_sign(t, dt))
+            current_sign = nullptr;
+        if (!next_sign)
+            return;
+        if (next_sign->at_length - carViz.current_pos < trigger_distance) {
+            qDebug() << "trigger";
+            current_sign = next_sign;
+            trigger(next_sign, t);
+            find_next_sign();
+        }
+    }
+protected:
     Track::Sign* next_sign = nullptr;
+    Track::Sign* current_sign = nullptr;
+    std::vector<Track::Sign::Type> types;
+    qreal trigger_distance = 0;
     Track& track;
     QCarViz& carViz;
-    std::auto_ptr<TurnSignExecutor> current_sign;
+};
+
+template<class T>
+class SignObserver : public T
+{
+public:
+    SignObserver(QCarViz& car_viz) : T(car_viz)
+    {
+        T::init();
+        T::find_next_sign();
+    }
+};
+
+class StopSignObserver : public SignObserverBase
+{
+protected:
+	StopSignObserver(QCarViz& carViz) : SignObserverBase(carViz) {}
+    //using SignObserverBase::SignObserverBase;
+    void init() override { types.push_back(Track::Sign::Stop); }
+    qreal get_trigger_distance(Track::Sign*) override {
+        return 70;
+    }
+    bool tick_current_sign(const qreal, const qreal) override {
+        if (carViz.get_car()->speed < 3) { // driving slow enough
+            qDebug() << "stop sign: slow enough!";
+            return true;
+        }
+        if (carViz.get_current_pos() - current_sign->at_length > 10) {
+            qDebug() << "StopSign: flash!";
+            return true;
+        }
+        return false;
+    }
+};
+
+class TrafficLightObserver : public SignObserverBase
+{
+protected:
+	TrafficLightObserver(QCarViz& carViz) : SignObserverBase(carViz) {}
+    //using SignObserverBase::SignObserverBase;
+    void init() override { types.push_back(Track::Sign::TrafficLight); }
+    static void trigger_traffic_light(Track::Sign* traffic_light) {
+        std::pair<qreal,qreal>& time_range = traffic_light->traffic_light_info.time_range;
+        std::uniform_int_distribution<int> time(time_range.first,time_range.second);
+        QThread::msleep(time(rng));
+        traffic_light->traffic_light_state = Track::Sign::Yellow;
+        QThread::msleep(1000);
+        traffic_light->traffic_light_state = Track::Sign::Green;
+    }
+    bool tick_current_sign(const qreal, const qreal) override {
+        if (current_sign->traffic_light_state != Track::Sign::Red_pending) {
+            qDebug() << "TrafficLight: okay";
+            return true;
+        }
+        if (carViz.get_current_pos() - current_sign->at_length > 10) {
+            qDebug() << "TrafficLight: flash!";
+            return true;
+        }
+        return false;
+    }
+    qreal get_trigger_distance(Track::Sign *sign) {
+        return sign->traffic_light_info.trigger_distance;
+    }
+    void trigger(Track::Sign * sign, const qreal) {
+        Q_ASSERT(sign->traffic_light_state == Track::Sign::Red);
+        sign->traffic_light_state = Track::Sign::Red_pending;
+        QtConcurrent::run(trigger_traffic_light, next_sign);
+    }
+
+};
+
+class TurnSignObserver : public SignObserverBase
+{
+protected:
+	TurnSignObserver(QCarViz& car_viz) : SignObserverBase(car_viz) { }
+    //using SignObserverBase::SignObserverBase;
+    void init() override {
+        types.push_back(Track::Sign::TurnLeft);
+        types.push_back(Track::Sign::TurnRight);
+    }
+    bool tick_current_sign(const qreal t, const qreal dt) {
+        const qreal tt = t - t0;
+        if (tt > t_stages[stage]) {
+            stage++;
+            if (stage >= 3)
+                return true;
+        }
+        qreal intensity = info->intensity * dt;
+        switch (stage) {
+            case 0: intensity *= tt / info->fade_in; break;
+            case 1: break;
+            case 2: intensity *= 1 - (tt - t_stages[1]) / info->fade_out; break;
+            default: Q_ASSERT(false);
+        }
+        //qDebug() << "stage " << stage << " steer " << intensity / dt;
+        carViz.steer(intensity * (info->left ? -1 : 1));
+        return false;
+    }
+public:
+    void trigger(Track::Sign *sign, qreal t) override {
+        current_sign = next_sign;
+        info = &sign->steering_info;
+        t0 = t;
+        stage = 0;
+        info->left = (sign->type == Track::Sign::TurnLeft);
+        t_stages[0] = info->fade_in;
+        t_stages[1] = t_stages[0] + info->duration;
+        t_stages[2] = t_stages[1] + info->fade_out;
+    }
+protected:
+    Track::Sign::SteeringInfo* info = nullptr;
+    qreal t0 = 0;
+    int stage = 0;
+    qreal t_stages[3];
 };
 
 struct SpeedObserver {
@@ -112,16 +199,16 @@ struct SpeedObserver {
         too_slow,
         too_fast,
     };
-    static void trigger_traffic_light(Track::Sign* traffic_light) {
-        std::pair<qreal,qreal>& time_range = traffic_light->traffic_light_info.time_range;
-        std::uniform_int_distribution<int> time(time_range.first,time_range.second);
-        QThread::msleep(time(rng));
-        traffic_light->traffic_light_state = Track::Sign::Yellow;
-        QThread::msleep(1000);
-        traffic_light->traffic_light_state = Track::Sign::Green;
-    }
+//    static void trigger_traffic_light(Track::Sign* traffic_light) {
+//        std::pair<qreal,qreal>& time_range = traffic_light->traffic_light_info.time_range;
+//        std::uniform_int_distribution<int> time(time_range.first,time_range.second);
+//        QThread::msleep(time(rng));
+//        traffic_light->traffic_light_state = Track::Sign::Yellow;
+//        QThread::msleep(1000);
+//        traffic_light->traffic_light_state = Track::Sign::Green;
+//    }
     void tick() {
-        const qreal current_pos = carViz.current_pos;
+        const qreal current_pos = carViz.get_current_pos();
         Track::Sign* current_speed_sign = NULL;
         Track::Sign* current_hold_sign = NULL;
         Track::Sign* next_sign = NULL;
@@ -149,13 +236,13 @@ struct SpeedObserver {
         {
             qDebug() << "trigger traffic light";
             next_sign->traffic_light_state = Track::Sign::Red_pending;
-            QtConcurrent::run(trigger_traffic_light, next_sign);
+            //QtConcurrent::run(trigger_traffic_light, next_sign);
         }
-        const qreal kmh = Gearbox::speed2kmh(carViz.car->speed);
+        const qreal kmh = carViz.get_kmh(); //Gearbox::speed2kmh(carViz.car->speed);
         const bool toofast = kmh > current_speed_limit * (1+TOO_FAST_TOLERANCE) + TOO_FAST_TOLERANCE_OFFSET;
         bool tooslow = kmh < current_speed_limit * (1-TOO_SLOW_TOLERANCE);
         if (tooslow) {
-            if (carViz.current_pos < MIN_DRIVING_DISTANCE)
+            if (carViz.get_current_pos() < MIN_DRIVING_DISTANCE)
                 tooslow = false;
             if (next_sign && (next_sign->type == Track::Sign::TrafficLight || next_sign->type == Track::Sign::Stop
                 || (next_sign->is_speed_sign() && kmh < next_sign->speed_limit() * (1-TOO_SLOW_TOLERANCE))))

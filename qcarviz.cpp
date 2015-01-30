@@ -62,8 +62,13 @@ void QCarViz::init(Car* car, QPushButton* start_button, QSlider* throttle, QSlid
     throttle_slider = throttle;
     breaking_slider = breaking;
     gear_spinbox = gear;
+
+	turnSignObserver = new SignObserver<TurnSignObserver>(*this);
+	signObserver.push_back(turnSignObserver);
+    signObserver.push_back(new SignObserver<StopSignObserver>(*this));
+    signObserver.push_back(new SignObserver<TrafficLightObserver>(*this));
     speedObserver.reset(new SpeedObserver(*this, *osc));
-    turnSignObserver.reset(new TurnSignObserver(*this));
+
     QObject::connect(start_button, SIGNAL(clicked()),
                      this, SLOT(start_stop()));
     keyboard_input.init(main_window);
@@ -91,6 +96,7 @@ void QCarViz::trigger_arrow()
     std::uniform_real_distribution<qreal> fade_out(0.05, 0.5);
     static Track::Sign sign;
     sign = Track::Sign(!dir(rng) ? Track::Sign::TurnLeft : Track::Sign::TurnRight, 0);
+    Q_ASSERT(turnSignObserver != nullptr);
     turnSignObserver->trigger(&sign, time_elapsed());
 }
 
@@ -109,7 +115,10 @@ void QCarViz::start() {
             if (s.type == Track::Sign::TrafficLight)
                 s.traffic_light_state = Track::Sign::Red;
         }
-        turnSignObserver->reset();
+        for (auto o : signObserver)
+            o->reset();
+//        turnSignObserver->reset();
+//        stopSignObserver->reset();
     }
     time_delta.start();
     tick_timer.start();
@@ -150,7 +159,8 @@ void QCarViz::prepare_track() {
     track.prepare_track();
     update_track_path(height());
     speedObserver->tick();
-    turnSignObserver->reset();
+    for (auto o : signObserver)
+        o->reset();
     fill_trees();
 }
 
@@ -257,7 +267,10 @@ bool QCarViz::tick() {
         }
     }
     steer(user_steering);
-    turnSignObserver->tick(t, dt);
+    for (auto o : signObserver)
+        o->tick(t, dt);
+//    turnSignObserver->tick(t, dt);
+//    stopSignObserver->tick(t, dt);
 
     // automatic clutch control
     if (track_started)
@@ -291,7 +304,7 @@ bool QCarViz::tick() {
     static qreal last_elapsed = 0;
     qreal elapsed = time_delta.get_elapsed();
     if (elapsed - last_elapsed > 0.05) {
-        qDebug() << "slow tick" << elapsed << last_elapsed;
+        //qDebug() << "slow tick" << elapsed << last_elapsed;
         if (changed) {
             throttle_slider->setValue(car->throttle * 100);
             breaking_slider->setValue(car->braking * 100);

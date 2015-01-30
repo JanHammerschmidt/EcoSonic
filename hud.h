@@ -40,17 +40,21 @@ struct ConsumptionDisplay {
     ConsumptionDisplay(QString legend1 = "L/", QString legend2 = "100km", const char* const number_format = "%04.1f")
         : number_format(number_format)
     {
+		fonts[0] = { "Eurostile", 18, QFont::Bold };
+		fonts[1] = { "Eurostile", 12, QFont::Bold };
+		fonts[2] = { "Eurostile", 8, QFont::Bold };
         legend[0] = legend1;
         legend[1] = legend2;
         for (int i = 0; i < 3; i++) {
+			font_metrics.emplace_back(fonts[i]);
             font_heights[i] = font_metrics[i].height();
         }
     }
 	void draw(QPainter& painter, QPointF pos, qreal consumption, bool draw_number = true);
 
     // fonts for number, 'L/', 100kmh
-    QFont fonts[3] = { {"Eurostile", 18, QFont::Bold}, {"Eurostile", 12, QFont::Bold}, {"Eurostile", 8, QFont::Bold} };
-    QFontMetrics font_metrics[3] = {QFontMetrics(fonts[0]), QFontMetrics(fonts[1]), QFontMetrics(fonts[2])};
+	QFont fonts[3]; //{ { "Eurostile", 18, QFont::Bold }, { "Eurostile", 12, QFont::Bold }, { "Eurostile", 8, QFont::Bold } };
+	std::vector<QFontMetrics> font_metrics; // = { QFontMetrics(fonts[0]), QFontMetrics(fonts[1]), QFontMetrics(fonts[2]) };
     //	static const std::array<QFont, 3> fonts;
     //	static const QFontMetrics font_metrics[3];
     qreal font_heights[3];

@@ -25,7 +25,7 @@ struct Log
 
     void add_item(qreal throttle, qreal braking, int gear, qreal dt) {
         //LogItem i = { throttle, braking, gear, dt };
-        items.append({ throttle, braking, gear, car_viz->eye_tracker_point, car_viz->user_steering, dt });
+        items.append({ throttle, braking, gear, car_viz->get_eye_tracker_point(), car_viz->get_user_steering(), dt });
     }
 
     bool save(const QString filename) const { return saveObj(filename, *this); }

@@ -40,9 +40,16 @@
 
 static std::mt19937_64 rng(std::random_device{}());
 
+class SignObserverBase;
+class TurnSignObserver;
 struct SpeedObserver;
-struct TurnSignObserver;
 class QCarViz;
+
+//template<class T> class SignObserver;
+
+//struct StopSignObserver;
+//class SignObserverBase;
+
 
 struct EyeTrackerClient : public QThread
 {
@@ -121,9 +128,13 @@ class QCarViz : public QWidget
     Q_OBJECT
 
 public:
-    friend struct SpeedObserver;
-    friend struct TurnSignObserver;
-    friend struct Log;
+    friend class SignObserverBase;
+//    friend struct SignObserver;
+//    template<class T> friend class SignObserver2;
+//    friend struct StopSignObserver;
+//    friend struct SpeedObserver;
+//    friend struct TurnSignObserver;
+//    friend struct Log;
     QCarViz(QWidget *parent = 0);
 
     virtual ~QCarViz() {
@@ -205,6 +216,22 @@ public:
         }
     }
 
+    QPointF& get_eye_tracker_point() { return eye_tracker_point; }
+
+    qreal get_kmh() { return Gearbox::speed2kmh(car->speed); }
+    qreal get_user_steering() { return user_steering; }
+
+    void steer(const qreal val) {
+        steering = boost::algorithm::clamp(steering + val, -1, 1);
+        //qDebug() << val << steering;
+    }
+
+    const Car* get_car() const { return car; }
+    qreal get_current_pos() const { return current_pos; }
+
+    Track track;
+    QElapsedTimer flash_timer; // controls the display of a flash (white screen)
+
 protected:
 
     void fill_trees() {
@@ -238,10 +265,6 @@ protected:
     }
 
     void trigger_arrow();
-    void steer(const qreal val) {
-        steering = boost::algorithm::clamp(steering + val, -1, 1);
-        //qDebug() << val << steering;
-    }
     qreal time_elapsed() {
         return time_delta.get_elapsed() - track_started_time;
     }
@@ -310,9 +333,11 @@ protected:
     const qreal initial_pos = 40;
     qreal current_pos = initial_pos; // current position of the car. max is: track_path.length()
     QImage car_img;
-    Track track;
     std::auto_ptr<SpeedObserver> speedObserver;
-    std::auto_ptr<TurnSignObserver> turnSignObserver;
+    std::vector<SignObserverBase*> signObserver;
+    TurnSignObserver* turnSignObserver = nullptr;
+//    std::auto_ptr<TurnSignObserver> turnSignObserver;
+//    std::auto_ptr<StopSignObserver> stopSignObserver;
     TimeDelta time_delta;
     Car* car;
     QPainterPath track_path;
@@ -328,7 +353,6 @@ protected:
     KeyboardInput keyboard_input;
     ConsumptionMonitor consumption_monitor;
     HUD hud;
-    QElapsedTimer flash_timer; // controls the display of a flash (white screen)
     bool track_started = false;
     qreal track_started_time = 0;
     OSCSender* osc = NULL;
