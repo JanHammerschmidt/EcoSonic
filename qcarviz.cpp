@@ -3,7 +3,7 @@
 #include "speed_observer.h"
 #include "logging.h"
 
-#define DRAW_ARROW_SIGN 2 // 0: simple arrow 1: arrow sign 2: "street"-arrow 3: curved "street"-arrow
+#define DRAW_ARROW_SIGN 3 // 0: simple arrow 1: arrow sign 2: "street"-arrow 3: curved "street"-arrow
 #define SHOW_EYETRACKER_POINT
 
 void EyeTrackerClient::read()
@@ -331,6 +331,10 @@ void QCarViz::draw(QPainter& painter)
 {
     if (flash_timer.elapsed() < 100)
         return;
+    if (!painter.isActive()) {
+        qDebug() << "painter not active!";
+        return;
+    }
     QTransform t;
     const qreal current_percent = track_path.percentAtLength(current_pos);
     const qreal car_x_pos = 50;
@@ -459,21 +463,112 @@ void QCarViz::draw(QPainter& painter)
         painter.setPen(pen);
         painter.drawLine(top, mid);
 #else
-        const qreal scale = 80;
-        QPointF top(-steering, 0.5); top *= scale;
-        QPointF left(-0.4, 1); left *= scale;
-        QPointF right(0.4, 1); right *= scale;
-        QPointF mid(0, 1 * scale);
-        painter.drawLine(top, left);
-        painter.drawLine(top, right);
-        QPainterPath p; p.moveTo(top); p.lineTo(left); p.lineTo(right); p.lineTo(top);
-        painter.fillPath(p, Qt::gray);
-        QPen pen(Qt::white);
-        pen.setStyle(Qt::DashLine);
-        painter.setPen(pen);
-        painter.drawLine(top, mid);
+        struct path {
+            QPointF p[4];
+            void set(const QPointF p0, const QPointF p1, const QPointF p2, const QPointF p3) {
+                p[0] = p0; p[1] = p1; p[2] = p2; p[3] = p3;
+            }
+            void get_path(QPainterPath& path) {
+                path.moveTo(p[0]);
+                path.cubicTo(p[1], p[2], p[3]);
+            }
+            void get_path_rev(QPainterPath& path) {
+                path.moveTo(p[3]);
+                path.cubicTo(p[2], p[1], p[0]);
+            }
+
+            void draw(QPainter& painter) {
+                QPainterPath path;
+                get_path(path);
+                painter.drawPath(path);
+            }
+            void interp(const path& p2, qreal const t, path& out) {
+                for (int i = 0; i < 4; i++)
+                    out.p[i] = ::interp(p[i], p2.p[i], t);
+            }
+        };
+        struct road {
+            road() { left *= scale; right *= scale; mid *= scale; }
+            void draw(QPainter& painter, const qreal current_pos) {
+                t[0].draw(painter);
+                t[1].draw(painter);
+
+                // fill with a gray brush
+                QPainterPath path;
+                t[0].get_path(path); path.lineTo(t[1].p[3]);
+                t[1].get_path_rev(path);
+                path.lineTo(t[0].p[0]);
+                painter.fillPath(path, Qt::gray);
+
+                QPen pen(Qt::white);
+                pen.setStyle(Qt::DashLine);
+                pen.setDashOffset(current_pos * 0.2);
+                painter.setPen(pen);
+                t[2].draw(painter);
+            }
+            void interp(const road& r2, qreal const f, road& r) { // f: weight of r2
+                for (int i = 0; i < 3; i++)
+                    t[i].interp(r2.t[i], f, r.t[i]);
+            }
+
+            path t[3]; // left, right, mid
+            QPointF left = QPointF(-0.4, 1);
+            QPointF right = QPointF(0.4, 1);
+            QPointF mid = QPointF(0, 1);
+            const qreal scale = 80;
+        };
+        struct straight_road : public road {
+            straight_road() {
+                QPointF top(0, 0.5*scale);
+                t[0].set(left, ::interp(left, top, 0.25), ::interp(left, top, 0.75), top);
+                t[1].set(right, ::interp(right, top, 0.25), ::interp(right, top, 0.75), top);
+                t[2].set(mid, ::interp(mid, top, 0.25), ::interp(mid, top, 0.75), top);
+            }
+        };
+        struct bent_road : public road {
+            const qreal dist = 0.7; // x-distance from center
+            const qreal top_end = 0.56; // y-values of "end" of the road
+            const qreal bottom_end = 0.65;
+            const qreal spline1_outer = 0.125; // spline-point-distance of beginning of street of inner/outer/mid line
+            const qreal spline1_inner = 0.1;
+            const qreal spline1_mid = 0.5 * (spline1_inner + spline1_outer);
+            const qreal spline2_outer = 0.2; // spline-point-distance of end of street (of inner/outer/mid line)
+            const qreal spline2_inner = 0.15;
+            const qreal spline2_mid = 0.5 * (spline2_inner + spline2_outer);
+        };
+
+        struct right_road : public bent_road {
+            right_road() {
+                const QPointF left_end = QPointF(dist, top_end) * scale;
+                const QPointF right_end = QPointF(dist, bottom_end) * scale;
+                const QPointF mid_end = QPointF(dist, (top_end+bottom_end)*0.5) * scale;
+                t[0].set(left, left + QPointF(0, -spline1_outer*scale), left_end + QPointF(-spline2_outer * scale, 0), left_end);
+                t[1].set(right, right + QPointF(0, -spline1_inner*scale), right_end + QPointF(-spline2_inner * scale, 0), right_end);
+                t[2].set(mid, mid + QPointF(0, -spline1_mid*scale), mid_end + QPointF(-spline2_mid * scale, 0), mid_end);
+            }
+        };
+        struct left_road : public bent_road {
+            left_road() {
+                const QPointF left_end = QPointF(-dist, bottom_end) * scale;
+                const QPointF right_end = QPointF(-dist, top_end) * scale;
+                const QPointF mid_end = QPointF(-dist, (top_end+bottom_end)*0.5) * scale;
+                t[0].set(left, left + QPointF(0, -spline1_inner*scale), left_end + QPointF(spline2_inner * scale, 0), left_end);
+                t[1].set(right, right + QPointF(0, -spline1_outer*scale), right_end + QPointF(spline2_outer * scale, 0), right_end);
+                t[2].set(mid, mid + QPointF(0, -spline1_mid*scale), mid_end + QPointF(spline2_mid * scale, 0), mid_end);
+            }
+        };
+
+        static straight_road straight;
+        static right_road right;
+        static left_road left;
+        road out;
+        if (steering >= 0)
+            straight.interp(right, steering, out);
+        else
+            straight.interp(left, -steering, out);
+        out.draw(painter, current_pos);
 #endif
-        painter.setOpacity(2.0);
+        painter.setOpacity(1.0);
     }
 #ifdef SHOW_EYETRACKER_POINT
     //eye_tracker_point = QCursor::pos();

@@ -74,4 +74,9 @@ struct TimeDelta {
     qint64 elapsed = 0;
 };
 
+template<class T, class U> T interp(const T& p1, const T& p2, const U f) {
+    Q_ASSERT(f >= 0 && f <= 1);
+    return (1-f) * p1 + f * p2;
+}
+
 #endif // MISC_H
