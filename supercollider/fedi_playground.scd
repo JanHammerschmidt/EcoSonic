@@ -2,9 +2,13 @@
 t.free;
 t = {~bus_pitch_freq.kr.poll(1)}.play
 )
-~bus_pitch_freq.set(800)
-~bus_pitch_freq.get
+{~engine_loudness_out.kr.poll(1)}.play;
+~bus_pitch_freq.set(562.32270950691)
+~bus_pitch_freq.get.postln
 ~engine_loudness_out.get
+~bus_pitch_freq.get
+
+~bus_pitch_freq.get
 
 ~ampcomp = Bus.control(s);
 (
@@ -131,7 +135,7 @@ OSCdef(\msg_pitch_start, {|m|
 		var pitch_noise = a * Resonz.ar(WhiteNoise.ar(0.5), f, bw);
 	    var engine_loudness_dbamp = (0.2 * (~engine_loudness_out.kr - 130)).dbamp;
 		var ampcomp_dbamp = (AmpComp.kr(f, 300,0.8)-0.02)*1.0204;
-		var pitch_noise_amped = pitch_noise /* * engine_loudness_dbamp*/ * ampcomp_dbamp;
+		var pitch_noise_amped = pitch_noise * engine_loudness_dbamp * ampcomp_dbamp;
 		~bus_pitch_freq.set(300);
 		Out.ar(~fedi_out, pitch_noise_amped!2)
 	}.play;
@@ -139,9 +143,12 @@ OSCdef(\msg_pitch_start, {|m|
 		if(m[1].isNaN.not && (m[1] != inf) && (~pitch != nil), {
 			//~pitch.set(\f, ..);
 			//m[1].postln;
+			//m[1].linlin(0,40,300,3000).postln;
 			~bus_pitch_freq.set(m[1].linlin(0,40,300,3000));
+			//~bus_pitch_freq.get.postln;
 		});
 	}, '/L_100km');
+	//{~engine_loudness_out.kr.poll(1)}.play;
 	~pitch_show_controls_osc.value;
 }, '/pitch_start');
 

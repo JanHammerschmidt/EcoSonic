@@ -42,14 +42,14 @@ static std::mt19937_64 rng(std::random_device{}());
 
 class SignObserverBase;
 class TurnSignObserver;
-struct SpeedObserver;
+//struct SpeedObserver;
 class QCarViz;
 
-//template<class T> class SignObserver;
-
-//struct StopSignObserver;
-//class SignObserverBase;
-
+enum TrafficViolation {
+    Speeding,
+    StopSign,
+    TrafficLight,
+};
 
 struct EyeTrackerClient : public QThread
 {
@@ -129,12 +129,7 @@ class QCarViz : public QWidget
 
 public:
     friend class SignObserverBase;
-//    friend struct SignObserver;
-//    template<class T> friend class SignObserver2;
-//    friend struct StopSignObserver;
-//    friend struct SpeedObserver;
-//    friend struct TurnSignObserver;
-//    friend struct Log;
+
     QCarViz(QWidget *parent = 0);
 
     virtual ~QCarViz() {
@@ -214,6 +209,11 @@ public:
             eye_tracker_point = p;
             t_last_eye_tracking_update = time_elapsed();
         }
+    }
+
+    void traffic_violation(const TrafficViolation violation) {
+        osc->send_float("/flash", 0);
+        flash_timer.start();
     }
 
     QPointF& get_eye_tracker_point() { return eye_tracker_point; }
@@ -333,7 +333,7 @@ protected:
     const qreal initial_pos = 40;
     qreal current_pos = initial_pos; // current position of the car. max is: track_path.length()
     QImage car_img;
-    std::auto_ptr<SpeedObserver> speedObserver;
+    //std::auto_ptr<SpeedObserver> speedObserver;
     std::vector<SignObserverBase*> signObserver;
     TurnSignObserver* turnSignObserver = nullptr;
 //    std::auto_ptr<TurnSignObserver> turnSignObserver;

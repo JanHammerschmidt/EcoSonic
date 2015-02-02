@@ -67,7 +67,8 @@ void QCarViz::init(Car* car, QPushButton* start_button, QSlider* throttle, QSlid
 	signObserver.push_back(turnSignObserver);
     signObserver.push_back(new SignObserver<StopSignObserver>(*this));
     signObserver.push_back(new SignObserver<TrafficLightObserver>(*this));
-    speedObserver.reset(new SpeedObserver(*this, *osc));
+    signObserver.push_back(new SignObserver<SpeedObserver>(*this));
+    //speedObserver.reset(new SpeedObserver(*this, *osc));
 
     QObject::connect(start_button, SIGNAL(clicked()),
                      this, SLOT(start_stop()));
@@ -158,7 +159,7 @@ bool QCarViz::load_log(const QString filename) {
 void QCarViz::prepare_track() {
     track.prepare_track();
     update_track_path(height());
-    speedObserver->tick();
+    //speedObserver->tick();
     for (auto o : signObserver)
         o->reset();
     fill_trees();
@@ -316,7 +317,7 @@ bool QCarViz::tick() {
         if (keyboard_input.connect()) {
             connect_to_eyetracker();
         }
-        speedObserver->tick();
+        //speedObserver->tick();
         if (!replay) {
             if (t - t_last_eye_tracking_update > 1)
                 ::new(&eye_tracker_point) QPointF();
