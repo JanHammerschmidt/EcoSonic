@@ -82,7 +82,7 @@ public:
         });
             //, &EyeTrackerClient::tcp_error(SocketAccessError));
 
-        qDebug() << "connecting...";
+        qDebug() << "connecting to EyeTracker-Server...";
         //socket->connectToHost("127.0.0.1", 7767);
         socket->connectToHost("192.168.0.10", 7767);
         if (!socket->waitForConnected(2000)) {
@@ -211,10 +211,7 @@ public:
         }
     }
 
-    void traffic_violation(const TrafficViolation violation) {
-        osc->send_float("/flash", 0);
-        flash_timer.start();
-    }
+    void traffic_violation(const TrafficViolation violation);
 
     QPointF& get_eye_tracker_point() { return eye_tracker_point; }
 
@@ -276,22 +273,11 @@ protected:
         } else {
             eye_tracker_client = new EyeTrackerClient(this);
             connect(eye_tracker_client, &EyeTrackerClient::destroyed, [this](){
-                qDebug() << "eye_tracker_client = nullptr";
+                //qDebug() << "eye_tracker_client = nullptr";
                 eye_tracker_client = nullptr;
             });
             eye_tracker_client->start();
         }
-//        if (eye_tracker_socket.isOpen()) {
-//            qDebug() << "disconnecting...";
-//            eye_tracker_socket.abort();
-//            eye_tracker_socket.close();
-//        } else {
-//            qDebug() << "connecting...";
-//            eye_tracker_socket.connectToHost("127.0.0.1", 7767);
-////            eye_tracker_socket.connectToHost("192.168.0.10", 7767);
-//            eye_tracker_socket.waitForConnected(2000);
-//            //eye_tracker_socket.waitForReadyRead(2000);
-//        }
     }
 
     void draw(QPainter& painter);
@@ -371,6 +357,7 @@ protected:
 //    QTcpSocket eye_tracker_socket;
 //    bool first_read = true;
     EyeTrackerClient* eye_tracker_client = nullptr;
+    bool show_eye_tracker_point = false;
 };
 
 

@@ -17,13 +17,13 @@
 class SignObserverBase
 {
 protected:
-    SignObserverBase(QCarViz& carViz)
-        : track(carViz.track), carViz(carViz)
+    SignObserverBase(QCarViz& carViz, const bool execute_when_replaying = false)
+        : track(carViz.track), carViz(carViz), execute_when_replaying(execute_when_replaying)
     { }
 
     void find_next_sign()
     {
-        qDebug() << "find next sign";
+        //qDebug() << "find next sign";
         if (!track.signs.size())
             return;
         if (!next_sign)
@@ -53,7 +53,9 @@ public:
         next_sign = nullptr;
         find_next_sign();
     }
-    virtual void tick(const qreal t, const qreal dt) {
+    virtual void tick(const bool replay, const qreal t, const qreal dt) {
+        if (replay && !execute_when_replaying)
+            return;
         if (current_sign && tick_current_sign(t, dt))
             current_sign = nullptr;
         if (!next_sign)
@@ -72,6 +74,7 @@ protected:
     qreal trigger_distance = 0;
     Track& track;
     QCarViz& carViz;
+    bool execute_when_replaying = false;
 };
 
 template<class T>
@@ -143,8 +146,7 @@ protected:
 class TrafficLightObserver : public SignObserverBase
 {
 protected:
-	TrafficLightObserver(QCarViz& carViz) : SignObserverBase(carViz) {}
-    //using SignObserverBase::SignObserverBase;
+    TrafficLightObserver(QCarViz& carViz) : SignObserverBase(carViz, true) { }
     void init() override { types.push_back(Track::Sign::TrafficLight); }
     static void trigger_traffic_light(Track::Sign* traffic_light) {
         std::pair<qreal,qreal>& time_range = traffic_light->traffic_light_info.time_range;
@@ -179,8 +181,7 @@ protected:
 class TurnSignObserver : public SignObserverBase
 {
 protected:
-	TurnSignObserver(QCarViz& car_viz) : SignObserverBase(car_viz) { }
-    //using SignObserverBase::SignObserverBase;
+    TurnSignObserver(QCarViz& car_viz) : SignObserverBase(car_viz, true) { }
     void init() override {
         types.push_back(Track::Sign::TurnLeft);
         types.push_back(Track::Sign::TurnRight);

@@ -4,7 +4,6 @@
 #include "logging.h"
 
 #define DRAW_ARROW_SIGN 3 // 0: simple arrow 1: arrow sign 2: "street"-arrow 3: curved "street"-arrow
-#define SHOW_EYETRACKER_POINT
 
 void EyeTrackerClient::read()
 {
@@ -78,6 +77,8 @@ void QCarViz::init(Car* car, QPushButton* start_button, QSlider* throttle, QSlid
 
     program_start_time = QDateTime::currentDateTime();
 
+    QTimer::singleShot(300, this, [this] { connect_to_eyetracker(); });
+
     if (start)
         QTimer::singleShot(500, this, SLOT(start()));
 }
@@ -87,6 +88,16 @@ void QCarViz::copy_from_track_editor(QTrackEditor* track_editor)
     track = track_editor->track;
     prepare_track();
 }
+
+void QCarViz::traffic_violation(const TrafficViolation violation)
+{
+    if (!replay) {
+        osc->send_float("/flash", 0);
+        flash_timer.start();
+        car->log->add_event((LogEvent::Type) violation); // careful! (casting..)
+    }
+}
+
 
 void QCarViz::trigger_arrow()
 {
@@ -239,6 +250,8 @@ bool QCarViz::tick() {
         osc->call("/vol_up");
     else if (keyboard_input.vol_down())
         osc->call("/vol_down");
+    if (keyboard_input.toggle_show_eye_tracking_point())
+        show_eye_tracker_point = !show_eye_tracker_point;
 
     if (!replay) {
         // Wingman input
@@ -268,8 +281,21 @@ bool QCarViz::tick() {
         }
     }
     steer(user_steering);
+
     for (auto o : signObserver)
-        o->tick(t, dt);
+        o->tick(replay, t, dt);
+
+    if (replay) {
+        for ( ; ; ) {
+            LogEvent* event = car->log->next_event(replay_index);
+            if (!event)
+                break;
+            // all events so far are trafficViolations!
+            osc->send_float("/flash", 0);
+            flash_timer.start();
+            qDebug() << "Log:" << event->type;
+        }
+    }
 //    turnSignObserver->tick(t, dt);
 //    stopSignObserver->tick(t, dt);
 
@@ -571,12 +597,12 @@ void QCarViz::draw(QPainter& painter)
 #endif
         painter.setOpacity(1.0);
     }
-#ifdef SHOW_EYETRACKER_POINT
-    //eye_tracker_point = QCursor::pos();
-    //globalToLocalCoordinates(eye_tracker_point);
-    painter.setTransform(QTransform());
-    painter.setBrush(Qt::NoBrush);
-    painter.setPen(Qt::black);
-    painter.drawEllipse(eye_tracker_point, 10, 10);
-#endif
+    if (show_eye_tracker_point) {
+        //eye_tracker_point = QCursor::pos();
+        //globalToLocalCoordinates(eye_tracker_point);
+        painter.setTransform(QTransform());
+        painter.setBrush(Qt::NoBrush);
+        painter.setPen(Qt::black);
+        painter.drawEllipse(eye_tracker_point, 10, 10);
+    }
 }

@@ -55,6 +55,12 @@ struct KeyboardInput : public QObject
         return ret;
     }
 
+    bool toggle_show_eye_tracking_point() {
+        const bool ret = t_eye_tracking;
+        t_eye_tracking = false;
+        return ret;
+    }
+
 
 protected:
     virtual bool eventFilter(QObject *obj, QEvent *e) {
@@ -80,6 +86,7 @@ protected:
                 case Qt::Key_U: t_pitch_toggle = true; break;
                 case Qt::Key_D: t_arrow = true; break;
                 case Qt::Key_C: t_connect = true; break;
+                case Qt::Key_E: t_eye_tracking = true; break;
                 default: keys_pressed.insert(key);
             }
         }
@@ -99,6 +106,7 @@ protected:
     bool t_pitch_toggle = false;
     bool t_arrow = false;
     bool t_connect = false;
+    bool t_eye_tracking = false;
 };
 
 #endif // KEYBOARDINPUT_H
