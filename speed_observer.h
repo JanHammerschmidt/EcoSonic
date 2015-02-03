@@ -61,7 +61,7 @@ public:
         if (!next_sign)
             return;
         if (next_sign->at_length - carViz.current_pos < trigger_distance) {
-            qDebug() << "trigger";
+            //qDebug() << "trigger";
             current_sign = next_sign;
             trigger(current_sign, t);
             find_next_sign();

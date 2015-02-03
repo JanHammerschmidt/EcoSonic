@@ -158,6 +158,7 @@ bool QCarViz::load_log(const QString filename) {
         replay_index = 0;
         track_started = true;
         track_started_time = time_delta.get_elapsed();
+        time_delta_replay = time_delta;
         car->engine.angular_velocity = log->initial_angular_velocity;
         printf("log: initial rpm: %.3f\n", car->engine.rpm());
         current_pos = track_path.length();
@@ -198,6 +199,11 @@ bool QCarViz::tick() {
         changed = true;
         replay_index++;
         time_delta.add_dt(dt);
+
+        const int prev_speed = replay_speed_mult;
+        replay_speed_mult = boost::algorithm::clamp(replay_speed_mult + keyboard_input.gear_change(), 1, 20);
+        if (prev_speed != replay_speed_mult)
+            qDebug() << "replay speed mult:" << replay_speed_mult;
     } else {
         if (!time_delta.get_time_delta(dt))
             return false;

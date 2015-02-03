@@ -103,6 +103,7 @@ OSCdef(\msg_slurp_stop, {|m|
 }, '/slurp_stop');
 
 
+~bus_dummy = Bus.control(s, 2);
 // map fuel consumption on pitched noise
 ~bus_pitch_freq = Bus.control(s);
 

@@ -89,7 +89,7 @@ public:
         if (abs(val) <= neutral_range)
             return 0;
         //val += (val > 0) ? -neutral_range : neutral_range;
-        qDebug() << val << (double) (val) / (128-neutral_range);
+        //qDebug() << val << (double) (val) / (128-neutral_range);
         return pow((double) (val) / (128-neutral_range), 3);
     }
     bool wheel_neutral() { /*qDebug() << wheel_value; */return wheel_value >= 121 && wheel_value <= 135; }

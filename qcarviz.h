@@ -285,8 +285,14 @@ protected:
     virtual void paintEvent(QPaintEvent *) {
 //        static FPSTimer fps("paint: ");
 //        fps.addFrame();
-        if (started)
-            tick();
+        if (started) {
+            if (replay) {
+                for (int i = 0; i < replay_speed_mult; i++)
+                    if (!tick())
+                        break;
+            } else
+                tick();
+        }
 
         QPainter painter(this);
         draw(painter);
@@ -325,6 +331,7 @@ protected:
 //    std::auto_ptr<TurnSignObserver> turnSignObserver;
 //    std::auto_ptr<StopSignObserver> stopSignObserver;
     TimeDelta time_delta;
+    TimeDelta time_delta_replay;
     Car* car;
     QPainterPath track_path;
     QVector<TreeType> tree_types;
@@ -346,6 +353,7 @@ protected:
     QDateTime program_start_time;
     bool replay = false;
     int replay_index = 0;
+    int replay_speed_mult = 1;
     std::auto_ptr<QSvgRenderer> turn_sign;
     QRectF turn_sign_rect;
     qreal steering = 0; // between -1 (left) and 1 (right)
