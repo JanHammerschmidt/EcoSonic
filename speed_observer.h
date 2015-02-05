@@ -51,6 +51,7 @@ protected:
 public:
     inline void reset() {
         next_sign = nullptr;
+        current_sign = nullptr;
         find_next_sign();
     }
     virtual void tick(const bool replay, const qreal t, const qreal dt) {

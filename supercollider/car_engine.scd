@@ -140,7 +140,7 @@ SynthDef(\engine, {
 		Out.ar(0, ~engine_out.ar);
 	}.play(addAction:\addToTail);
 	~engine_loudness = {
-		var fft = FFT(~fft_buf, ~engine_out.ar);
+		var fft = FFT(~fft_buf, ~engine_out.ar[0]);
 		var sone = LPF.kr(Loudness.kr(fft), 1);
 		var phon = 40 + 10 * log2(sone);
 		Out.kr(~engine_loudness_out, phon);
@@ -217,7 +217,9 @@ OSCdef(\msg_gear, {|m|
 
 /// TESTING /////////////////////////////////////////////////////////////////////
 
+~engine_out.ar[0]
 ~start_engine.value
+~engine_loudness_out.scope
 ~engine_loudness_out.get
 ~stop_engine.value
 ~engine_out.scope

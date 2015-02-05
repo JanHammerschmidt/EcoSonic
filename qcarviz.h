@@ -358,12 +358,8 @@ protected:
     QRectF turn_sign_rect;
     qreal steering = 0; // between -1 (left) and 1 (right)
     qreal user_steering = 0;
-//    qreal turn_sign_length = 0;
-//    qreal current_turn_sign_length = 0;
     QPointF eye_tracker_point;
     qreal t_last_eye_tracking_update = 0;
-//    QTcpSocket eye_tracker_socket;
-//    bool first_read = true;
     EyeTrackerClient* eye_tracker_client = nullptr;
     bool show_eye_tracker_point = false;
 };

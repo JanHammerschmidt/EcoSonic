@@ -61,7 +61,8 @@ OSCdef(\msg_vol_down, {|m| ~fedi_stream_vol_add.value(-0.2)}, '/vol_down');
 
 
 // generate a slurp-sound when above optimal rpm
-~buf_slurp = Buffer.read(s, "/Users/jhammers/slurp-sounds/slurp_cont.wav");
+ ~buf_slurp = Buffer.read(s, "/Users/jhammers/slurp-sounds/slurp_cont.wav");
+//~buf_slurp = Buffer.read(s, "/Users/jhammers/slurp-sounds/selection/96896__tinyjiro__straw-slurp.wav");
 ~bus_slurp = Bus.audio(s, 2);
 
 ~slurp_play = {|loop=1, startPos=0| // startPos in seconds
@@ -74,7 +75,7 @@ OSCdef(\msg_vol_down, {|m| ~fedi_stream_vol_add.value(-0.2)}, '/vol_down');
 };
 ~slurp_lpf_play = {
 	~slurp_lpf = {|f=15000,m=2| // f:[200,15000], m:[0,5] (oder so ..)
-		Out.ar(~fedi_out, LPF.ar(~bus_slurp.ar, f, m)) //*1.5)
+		Out.ar(~fedi_out, LPF.ar(~bus_slurp.ar, freq:f, mul:m)) //*1.5)
 	}.play;
 };
 ~slurp_stop = {
@@ -102,8 +103,6 @@ OSCdef(\msg_slurp_stop, {|m|
 	~slurp_stop.value;
 }, '/slurp_stop');
 
-
-~bus_dummy = Bus.control(s, 2);
 // map fuel consumption on pitched noise
 ~bus_pitch_freq = Bus.control(s);
 
