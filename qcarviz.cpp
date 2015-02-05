@@ -461,8 +461,10 @@ void QCarViz::draw(QPainter& painter)
             t.translate(-turn_sign_rect.width(),0);
         }
         painter.setOpacity(fabs(steering) - center_tolerance);
-#else
+#elif (DRAW_ARROW_SIGN==2)
         t.translate(0.5 * width(), 20);
+#else
+        t.translate(0.5 * width(), 0);
 #endif
         painter.setTransform(t);
 #if (DRAW_ARROW_SIGN==0)
@@ -535,6 +537,8 @@ void QCarViz::draw(QPainter& painter)
 
                 QPen pen(Qt::white);
                 pen.setStyle(Qt::DashLine);
+                pen.setWidth(2);
+                pen.setDashPattern({5, 4});
                 pen.setDashOffset(current_pos * 0.2);
                 painter.setPen(pen);
                 t[2].draw(painter);
@@ -548,11 +552,11 @@ void QCarViz::draw(QPainter& painter)
             QPointF left = QPointF(-0.4, 1);
             QPointF right = QPointF(0.4, 1);
             QPointF mid = QPointF(0, 1);
-            const qreal scale = 80;
+            const qreal scale = 160;
         };
         struct straight_road : public road {
             straight_road() {
-                QPointF top(0, 0.5*scale);
+                QPointF top(0, 0.7*scale);
                 t[0].set(left, ::interp(left, top, 0.25), ::interp(left, top, 0.75), top);
                 t[1].set(right, ::interp(right, top, 0.25), ::interp(right, top, 0.75), top);
                 t[2].set(mid, ::interp(mid, top, 0.25), ::interp(mid, top, 0.75), top);
@@ -560,8 +564,8 @@ void QCarViz::draw(QPainter& painter)
         };
         struct bent_road : public road {
             const qreal dist = 0.7; // x-distance from center
-            const qreal top_end = 0.56; // y-values of "end" of the road
-            const qreal bottom_end = 0.65;
+            const qreal top_end = 0.56+0.1; // y-values of "end" of the road
+            const qreal bottom_end = 0.65+0.1;
             const qreal spline1_outer = 0.125; // spline-point-distance of beginning of street of inner/outer/mid line
             const qreal spline1_inner = 0.1;
             const qreal spline1_mid = 0.5 * (spline1_inner + spline1_outer);
