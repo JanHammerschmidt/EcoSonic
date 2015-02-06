@@ -18,6 +18,14 @@ struct LogItem
     QPointF eye_tracker_point;
     qreal steering;
     qreal dt;
+    void write(QJsonObject& j) {
+        j["throttle"] = throttle;
+        j["braking"] = braking;
+        j["gear"] = gear;
+        //j["eye_tracker_point"] = !!
+        j["steering"] = steering;
+        j["dt"] = dt;
+    }
 };
 
 struct LogEvent {
@@ -52,6 +60,18 @@ struct Log
 
     bool save(const QString filename) const { return misc::saveObj(filename, *this); }
     bool load(const QString filename) { return misc::loadObj(filename, *this); }
+    bool save_json(const QString filename) const { return misc::saveJson(filename, *this); }
+
+    void write(QJsonObject& j) const {
+        j["condition"] = sound_modus == 0 ? "VIS" : (sound_modus == 1 ? "SLP" : (sound_modus == 2 ? "CPB" : "UNDEFINED!"));
+        QJsonArray jitems;
+        for (auto i : items) {
+            QJsonObject ji;
+            i.write(ji);
+            jitems.append(ji);
+        }
+        j["items"] = jitems;
+    }
 
     Car* car;
     QCarViz* car_viz;

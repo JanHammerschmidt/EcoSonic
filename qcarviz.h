@@ -197,7 +197,8 @@ public:
         }
     }
 
-    bool load_log(const QString filename);
+    bool load_log(const QString filename, const bool start);
+    void save_json(const QString filename);
 
     std::auto_ptr<HUDWindow> hud_window;
 
@@ -319,7 +320,7 @@ protected:
     void draw(QPainter& painter);
 
     virtual void paintEvent(QPaintEvent *) {
-//        static FPSTimer fps("paint: ");
+//        static misc::FPSTimer fps("paint:");
 //        fps.addFrame();
         if (started) {
             if (replay) {

@@ -26,8 +26,23 @@ bool loadObj(const QString filename, T& obj) {
     return true;
 }
 
+template<class T>
+bool saveJson(const QString filename, const T& obj) {
+    QFile file(filename);
+    QDir().mkpath(QFileInfo(file).absolutePath());
+    if (!file.open(QIODevice::WriteOnly))
+        return false;
+
+    QJsonObject json_obj;
+    obj.write(json_obj);
+    QJsonDocument doc(json_obj);
+    file.write(doc.toJson());
+    return true;
+}
+
+
 struct FPSTimer {
-    FPSTimer(std::string name = "FPS: ", qint64 interval = 2000)
+    FPSTimer(const QString& name = "FPS: ", qint64 interval = 2000)
         : name(name)
         , interval(interval)
         , count(0)
@@ -38,7 +53,8 @@ struct FPSTimer {
         count++;
         qint64 elapsed = timer.elapsed();
         if (elapsed > interval) {
-            printf("%s%.3f\n", name.c_str(), double(count*1000) / elapsed);
+            qDebug() << name << double(count*1000) / elapsed;
+            //printf("%s%.3f\n", name.c_str(), double(count*1000) / elapsed);
             count = 0;
             timer.restart();
         }
@@ -46,7 +62,7 @@ struct FPSTimer {
 
     QElapsedTimer timer;
     int frames = 0;
-    std::string name;
+    QString name;
     qreal interval;
     int count;
 };

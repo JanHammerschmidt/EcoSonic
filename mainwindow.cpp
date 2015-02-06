@@ -62,10 +62,12 @@ void setup_plot(QCustomPlot* plot, QString xLabel, QString yLabel) {
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
+    , car(&osc)
     , timer(this)
 {
     ui->setupUi(this);
     last_tab = ui->tabWidget->currentIndex();
+
     Track::images.load_sign_images();
     ui->track_editor->init(ui->track_width, ui->track_points, ui->track_show_control_points,
                            ui->track_add_sign, ui->track_reset, ui->max_time, ui->track_prune_points,
@@ -170,7 +172,7 @@ void MainWindow::on_actionOpen_Log_triggered()
     ui->car_viz->stop(true);
     QString filename = QFileDialog::getOpenFileName(this, "Open Log", QDir::homePath()+"/EcoSonic", "Log Files (*.log)");
     if (filename != "" && QFile(filename).exists()) {
-        ui->car_viz->load_log(filename);
+        ui->car_viz->load_log(filename, true);
     } else {
         ui->car_viz->start();
     }
@@ -191,5 +193,23 @@ void MainWindow::on_hud_toggle_clicked()
         hw.show();
     } else {
         car_viz.hud_window.reset();
+    }
+}
+
+void MainWindow::on_actionConvert_Log_triggered()
+{
+    ui->car_viz->stop(true);
+    QString filename = QFileDialog::getOpenFileName(this, "Open Log", QDir::homePath()+"/EcoSonic", "Log Files (*.log)");
+    if (filename != "" && QFile(filename).exists()) {
+        ui->car_viz->load_log(filename, false);
+//        while (ui->car_viz->tick())
+//        { }
+        const int dot = filename.lastIndexOf('.');
+        if (dot != -1)
+            filename = filename.left(dot);
+        filename += ".json";
+        ui->car_viz->save_json(filename);
+    } else {
+        ui->car_viz->start();
     }
 }

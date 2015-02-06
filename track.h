@@ -310,8 +310,6 @@ inline QDataStream &operator>>(QDataStream &in, Track::Sign::SteeringInfo &s_inf
     return in;
 }
 
-
-
 inline QDataStream &operator<<(QDataStream &out, const Track::Sign &sign) {
     out << (int) sign.type << sign.at_length << sign.traffic_light_info << sign.steering_info;
     return out;

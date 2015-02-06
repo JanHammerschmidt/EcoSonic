@@ -150,7 +150,7 @@ void QCarViz::start() {
     start_button->setText("Pause");
 }
 
-bool QCarViz::load_log(const QString filename) {
+bool QCarViz::load_log(const QString filename, const bool start) {
     std::shared_ptr<Log>& log = car->log;
     log.reset(new Log(car, this, &track));
     const bool ret = misc::loadObj(filename, *log);
@@ -163,7 +163,6 @@ bool QCarViz::load_log(const QString filename) {
         qDebug() << "log: elapsed_time:" << log->elapsed_time;
         qDebug() << "log: deciliters_used:" << log->liters_used * 10;
 //        printf("log: items: %i\n", log->items.size());
-        this->sound_modus = log->sound_modus;
         prepare_track();
         replay = true;
         replay_index = 0;
@@ -173,11 +172,18 @@ bool QCarViz::load_log(const QString filename) {
         car->engine.angular_velocity = log->initial_angular_velocity;
         printf("log: initial rpm: %.3f\n", car->engine.rpm());
         current_pos = track_path.length();
-        start();
-        update_sound_modus(sound_modus);
+        update_sound_modus(log->sound_modus);
+        if (start)
+            this->start();
     }
     return ret;
 }
+
+void QCarViz::save_json(const QString filename)
+{
+   car->log->save_json(filename);
+}
+
 
 void QCarViz::prepare_track() {
     track.prepare_track();

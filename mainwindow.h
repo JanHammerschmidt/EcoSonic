@@ -62,6 +62,8 @@ private slots:
 
     void on_hud_toggle_clicked();
 
+    void on_actionConvert_Log_triggered();
+
 private:
     Ui::MainWindow *ui;
     Car car;

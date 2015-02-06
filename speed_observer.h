@@ -223,6 +223,17 @@ protected:
     qreal t_stages[3];
 };
 
+//struct TooSlowObserver {
+//    TooSlowObserver(QCarViz& car_viz) : car_viz(car_viz), track(car_viz.track) { }
+//    void reset() {
+//        const QVector<Track::Sign>& signs = track.signs;
+
+//    }
+
+//    QCarViz& car_viz;
+//    Track& track;
+//};
+
 //struct SpeedObserver {
 //    SpeedObserver(QCarViz& carViz, OSCSender& osc)
 //        : track(carViz.track), carViz(carViz), osc(osc)

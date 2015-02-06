@@ -36,6 +36,7 @@ t = {~bus_pitch_freq.kr.poll(1)}.play
 
 (300,310..3000).collect {|freq| (((350/freq) ** 0.9)-0.05)*1.0526 }.plot;
 (200,210..3000).collect {|freq| (200/freq) ** 0.33 }.plot;
+2000.linlin(0, 1000, 0.38, 0.42, \min);
 
 ///////////////////////////////////////////////////////////////////////
 
@@ -61,7 +62,7 @@ OSCdef(\msg_vol_down, {|m| ~fedi_stream_vol_add.value(-0.2)}, '/vol_down');
 
 
 // generate a slurp-sound when above optimal rpm
- ~buf_slurp = Buffer.read(s, "/Users/jhammers/slurp-sounds/slurp_cont.wav");
+~buf_slurp = Buffer.read(s, "/Users/jhammers/slurp-sounds/slurp_cont.wav");
 //~buf_slurp = Buffer.read(s, "/Users/jhammers/slurp-sounds/selection/96896__tinyjiro__straw-slurp.wav");
 ~bus_slurp = Bus.audio(s, 2);
 
@@ -75,23 +76,35 @@ OSCdef(\msg_vol_down, {|m| ~fedi_stream_vol_add.value(-0.2)}, '/vol_down');
 };
 ~slurp_lpf_play = {
 	~slurp_lpf = {|f=15000,m=2| // f:[200,15000], m:[0,5] (oder so ..)
-		Out.ar(~fedi_out, LPF.ar(~bus_slurp.ar, freq:f, mul:m)) //*1.5)
+		Out.ar(~fedi_out, LPF.ar(~bus_slurp.ar, freq:f, mul:m*1.5))
 	}.play;
 };
 ~slurp_stop = {
 	~set_rpm_handler.value;
+	OSCdef(\msg_uphill_resistance).clear;
+	OSCdef(\msg_uphill_resistance).free;
 	if (~slurp != nil, {~slurp.free; ~slurp = nil});
 	if (~slurp_lpf != nil, {~slurp_lpf.free; ~slurp_lpf = nil});
 };
 ~slurp_start = {
 	~slurp_stop.value;
 	~slurp_lpf_play.value;
+	~uphill_resistance = 0;
 	OSCdef(\msg_rpm, {|m|
 		~rpm_handler.value(m[1]); // still control the engine-sound!
-		if (~gear == 5, {~slurp_lpf.set(\m, 0)},{~slurp_lpf.set(\m, m[1].linlin(0.38,0.65, 0,1.2));});
+		if (~gear == 5,
+			{~slurp_lpf.set(\m, 0)},
+			{
+				var min_rpm = ~uphill_resistance.linlin(0, 3000, 0.3, 0.45, \min); // 0.38
+				~slurp_lpf.set(\m, m[1].linlin(min_rpm, 0.65, 0,1.2));
+		    });
 		//~lpf.set(\f, m[1].linlin(0.38,1, 400,15000));
 		//m[1].postln;
 	}, '/rpm');
+	OSCdef(\msg_uphill_resistance, {|m|
+		~uphill_resistance = m[1];
+		~uphill_resistance.postln;
+	}, '/uphill_resistance');
 	{~slurp_play.value}.defer(0.2);
 };
 OSCdef(\msg_slurp_start, {|m|
