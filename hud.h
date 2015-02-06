@@ -11,11 +11,6 @@
 struct Speedometer {
 	void draw(QPainter& painter, const QPointF pos, const qreal kmh);
 
-    static void draw_centered_text(QPainter& painter, QFontMetrics& fm, QString text, const QPointF pos) {
-        const QPointF p = pos + QPointF(-0.5 * fm.width(text), 0.5 * fm.height());
-        painter.drawText(p, text);
-    }
-
     qreal max_speed() { return min_speed + speed_steps * speed_delta; }
 
     qreal radius = 100;

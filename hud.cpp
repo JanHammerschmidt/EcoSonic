@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "hud.h"
+#include "misc.h"
 
 //const std::array<QFont, 3> ConsumptionDisplay::fonts = { { QFont{ "Eurostile", 18, QFont::Bold }, QFont{ "Eurostile", 12, QFont::Bold }, QFont{ "Eurostile", 8, QFont::Bold } } };
 //const QFontMetrics ConsumptionDisplay::font_metrics[3] = { QFontMetrics(fonts[0]), QFontMetrics(fonts[1]), QFontMetrics(fonts[2]) };
@@ -24,7 +25,7 @@ void Speedometer::draw(QPainter& painter, const QPointF pos, const qreal kmh)
 		painter.drawLine(pos + (radius - 10) * vec, pos + radius * vec);
 		QString str;
 		QTextStream(&str) << min_speed + i * speed_delta;
-		draw_centered_text(painter, fm, str, pos + (radius - 19 - fabs(cos(angle))*0.4*fm.width(str)) * vec);
+        misc::draw_centered_text(painter, fm, str, pos + (radius - 19 - fabs(cos(angle))*0.4*fm.width(str)) * vec);
 	}
 
 	// draw secondary ticks
@@ -38,7 +39,7 @@ void Speedometer::draw(QPainter& painter, const QPointF pos, const qreal kmh)
 	// draw caption
 	painter.setFont(QFont("Arial", 12));
 	fm = painter.fontMetrics();
-	draw_centered_text(painter, fm, caption, pos + QPointF(0, -0.5 * radius));
+    misc::draw_centered_text(painter, fm, caption, pos + QPointF(0, -0.5 * radius));
 
 	// draw needle
 	//painter.setPen(QPen(QBrush(QColor(201,14,14)), 6));

@@ -4,6 +4,8 @@
 #include <QElapsedTimer>
 #include <QDir>
 
+namespace misc {
+
 template<class T>
 bool saveObj(const QString filename, const T& obj) {
     QFile file(filename);
@@ -78,5 +80,12 @@ template<class T, class U> T interp(const T& p1, const T& p2, const U f) {
     Q_ASSERT(f >= 0 && f <= 1);
     return (1-f) * p1 + f * p2;
 }
+
+inline void draw_centered_text(QPainter& painter, QFontMetrics& fm, QString text, const QPointF pos) {
+    const QPointF p = pos + QPointF(-0.5 * fm.width(text), 0.5 * fm.height());
+    painter.drawText(p, text);
+}
+
+} // namespace misc
 
 #endif // MISC_H

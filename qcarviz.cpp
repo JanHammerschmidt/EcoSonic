@@ -89,13 +89,24 @@ void QCarViz::copy_from_track_editor(QTrackEditor* track_editor)
     prepare_track();
 }
 
-void QCarViz::traffic_violation(const TrafficViolation violation)
+void QCarViz::log_traffic_violation(const TrafficViolation violation)
 {
     if (!replay) {
-        osc->send_float("/flash", 0);
-        flash_timer.start();
+        show_traffic_violation(violation);
         car->log->add_event((LogEvent::Type) violation); // careful! (casting..)
     }
+}
+
+void QCarViz::show_traffic_violation(const TrafficViolation violation) {
+    osc->send_float("/flash", 0);
+    flash_timer.start();
+    QString hint;
+    switch (violation) {
+        case Speeding: hint = "You were driving too fast!"; break;
+        case StopSign: hint = "You didn't stop for the stop sign!"; break;
+        case TrafficLight: hint = "You didn't stop for the red traffic light!"; break;
+    }
+    text_hint.showText(hint);
 }
 
 
@@ -142,7 +153,7 @@ void QCarViz::start() {
 bool QCarViz::load_log(const QString filename) {
     std::shared_ptr<Log>& log = car->log;
     log.reset(new Log(car, this, &track));
-    const bool ret = loadObj(filename, *log);
+    const bool ret = misc::loadObj(filename, *log);
     if (ret) {
         if (!log->valid) {
             qDebug() << "wrong version!";
@@ -208,6 +219,8 @@ bool QCarViz::tick() {
         if (!time_delta.get_time_delta(dt))
             return false;
 
+        if (keyboard_input.pitch_toggle())
+            text_hint.showText("You were driving too fast!");
         // keyboard input
         if (keyboard_input.update()) {
             car->throttle = keyboard_input.throttle();
@@ -297,8 +310,7 @@ bool QCarViz::tick() {
             if (!event)
                 break;
             // all events so far are trafficViolations!
-            osc->send_float("/flash", 0);
-            flash_timer.start();
+            show_traffic_violation((TrafficViolation) event->type); // carful! (casting)
             qDebug() << "Log:" << event->type;
         }
     }
@@ -519,7 +531,7 @@ void QCarViz::draw(QPainter& painter)
             }
             void interp(const path& p2, qreal const t, path& out) {
                 for (int i = 0; i < 4; i++)
-                    out.p[i] = ::interp(p[i], p2.p[i], t);
+                    out.p[i] = misc::interp(p[i], p2.p[i], t);
             }
         };
         struct road {
@@ -556,10 +568,11 @@ void QCarViz::draw(QPainter& painter)
         };
         struct straight_road : public road {
             straight_road() {
+                using misc::interp;
                 QPointF top(0, 0.7*scale);
-                t[0].set(left, ::interp(left, top, 0.25), ::interp(left, top, 0.75), top);
-                t[1].set(right, ::interp(right, top, 0.25), ::interp(right, top, 0.75), top);
-                t[2].set(mid, ::interp(mid, top, 0.25), ::interp(mid, top, 0.75), top);
+                t[0].set(left, interp(left, top, 0.25), interp(left, top, 0.75), top);
+                t[1].set(right, interp(right, top, 0.25), interp(right, top, 0.75), top);
+                t[2].set(mid, interp(mid, top, 0.25), interp(mid, top, 0.75), top);
             }
         };
         struct bent_road : public road {
@@ -607,6 +620,12 @@ void QCarViz::draw(QPainter& painter)
 #endif
         painter.setOpacity(1.0);
     }
+
+    // draw text-hints
+    t.reset();
+    painter.setTransform(t);
+    text_hint.draw(painter, QPointF(0.5*width(), 50));
+
     if (show_eye_tracker_point) {
         //eye_tracker_point = QCursor::pos();
         //globalToLocalCoordinates(eye_tracker_point);

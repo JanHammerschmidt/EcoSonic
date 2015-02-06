@@ -50,8 +50,8 @@ struct Log
         return nullptr;
     }
 
-    bool save(const QString filename) const { return saveObj(filename, *this); }
-    bool load(const QString filename) { return loadObj(filename, *this); }
+    bool save(const QString filename) const { return misc::saveObj(filename, *this); }
+    bool load(const QString filename) { return misc::loadObj(filename, *this); }
 
     Car* car;
     QCarViz* car_viz;

@@ -45,6 +45,41 @@ class TurnSignObserver;
 //struct SpeedObserver;
 class QCarViz;
 
+struct TextHint {
+    QString text;
+    QElapsedTimer timer;
+    qint64 normal_show_time = 2000;
+    qreal fadeout_time = 1000;
+    QFont font;
+    QFontMetrics font_metrics;
+    TextHint() : font{ "Helvetica Neue", 22, QFont::Bold }, font_metrics(font) {
+        qDebug() << font_metrics.width("test");
+    }
+    void showText(const QString& text) {
+        timer.start();
+        this->text = text;
+    }
+    void draw(QPainter& painter, const QPointF pos) {
+        if (!timer.isValid())
+            return;
+        qreal elapsed = timer.elapsed();
+        if (elapsed >= normal_show_time + fadeout_time) {
+            timer.invalidate();
+            return;
+        }
+        painter.setFont(font);
+        painter.setPen(Qt::black);
+        if (elapsed <= normal_show_time) {
+            //painter.setOpacity(1.0);
+        } else {
+            painter.setOpacity(1.0 - (elapsed - normal_show_time) / fadeout_time);
+        }
+        misc::draw_centered_text(painter, font_metrics, text, pos);
+        //painter.drawText(QPointF(20,20), text);
+        painter.setOpacity(1.0);
+    }
+};
+
 enum TrafficViolation {
     Speeding,
     StopSign,
@@ -211,7 +246,8 @@ public:
         }
     }
 
-    void traffic_violation(const TrafficViolation violation);
+    void log_traffic_violation(const TrafficViolation violation);
+    void show_traffic_violation(const TrafficViolation violation);
 
     QPointF& get_eye_tracker_point() { return eye_tracker_point; }
 
@@ -330,8 +366,8 @@ protected:
     TurnSignObserver* turnSignObserver = nullptr;
 //    std::auto_ptr<TurnSignObserver> turnSignObserver;
 //    std::auto_ptr<StopSignObserver> stopSignObserver;
-    TimeDelta time_delta;
-    TimeDelta time_delta_replay;
+    misc::TimeDelta time_delta;
+    misc::TimeDelta time_delta_replay;
     Car* car;
     QPainterPath track_path;
     QVector<TreeType> tree_types;
@@ -362,6 +398,7 @@ protected:
     qreal t_last_eye_tracking_update = 0;
     EyeTrackerClient* eye_tracker_client = nullptr;
     bool show_eye_tracker_point = false;
+    TextHint text_hint;
 };
 
 

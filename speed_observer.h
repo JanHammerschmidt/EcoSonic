@@ -104,7 +104,7 @@ protected:
             return true;
         }
         if (carViz.get_current_pos() - current_sign->at_length > 10) {
-            carViz.traffic_violation(TrafficViolation::StopSign);
+            carViz.log_traffic_violation(TrafficViolation::StopSign);
             qDebug() << "StopSign: flash!";
             return true;
         }
@@ -135,7 +135,7 @@ protected:
     bool tick_current_sign(const qreal, const qreal) override {
         if (carViz.get_kmh() > current_speed_limit && cooldown_timer.elapsed() > COOLDOWN_TIME_SPEEDING) {
             qDebug() << "Speed: Flash!";
-            carViz.traffic_violation(TrafficViolation::Speeding);
+            carViz.log_traffic_violation(TrafficViolation::Speeding);
             cooldown_timer.start();
         }
         return false;
@@ -164,7 +164,7 @@ protected:
         }
         if (carViz.get_current_pos() - current_sign->at_length > 10) {
             qDebug() << "TrafficLight: flash!";
-            carViz.traffic_violation(TrafficViolation::TrafficLight);
+            carViz.log_traffic_violation(TrafficViolation::TrafficLight);
             return true;
         }
         return false;

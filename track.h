@@ -151,10 +151,10 @@ struct Track {
                 QString s;
                 QPointF p((pos.left() + pos.right()) / 2, pos.top() - 1.1 * fm.height());
                 s.sprintf("%02.1f", traffic_light_info.time_range.first / 1000.);
-                Speedometer::draw_centered_text(painter, fm, s, p);
+                misc::draw_centered_text(painter, fm, s, p);
                 s.sprintf("%02.1f", traffic_light_info.time_range.second / 1000.);
                 p.setY(p.y() - 1.1 * fm.height());
-                Speedometer::draw_centered_text(painter, fm, s, p);
+                misc::draw_centered_text(painter, fm, s, p);
                 // draw trigger distance
                 qreal const percent = path.percentAtLength(at_length - traffic_light_info.trigger_distance);
                 p = path.pointAtPercent(percent);
@@ -168,7 +168,7 @@ struct Track {
                 QPointF p((pos.left() + pos.right()) / 2, pos.top() - 1.1 * fm.height());
                 for (auto i : {steering_info.fade_out, steering_info.fade_in, steering_info.duration, steering_info.intensity}) {
                     s.sprintf("%02.1f", i);
-                    Speedometer::draw_centered_text(painter, fm, s, p);
+                    misc::draw_centered_text(painter, fm, s, p);
                     p.setY(p.y() - 1.1 * fm.height());
                 }
             }
@@ -245,8 +245,8 @@ struct Track {
     };
     static Images images;
 
-    inline bool save(const QString filename = QDir::homePath()+"/EcoSonic/track.bin") const { return saveObj(filename, *this); }
-    inline bool load(const QString filename = QDir::homePath()+"/EcoSonic/track.bin") { return loadObj(filename, *this); }
+    inline bool save(const QString filename = QDir::homePath()+"/EcoSonic/track.bin") const { return misc::saveObj(filename, *this); }
+    inline bool load(const QString filename = QDir::homePath()+"/EcoSonic/track.bin") { return misc::loadObj(filename, *this); }
     void get_path(QPainterPath& path, const qreal height) {
         if (!points.size())
             return;
