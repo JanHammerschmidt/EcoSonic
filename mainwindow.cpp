@@ -209,6 +209,7 @@ void MainWindow::on_actionConvert_Log_triggered()
             filename = filename.left(dot);
         filename += ".json";
         ui->car_viz->save_json(filename);
+        qDebug() << "saved";
     } else {
         ui->car_viz->start();
     }

@@ -951,6 +951,7 @@ Sign</string>
      <string>File</string>
     </property>
     <addaction name="actionOpen_Log"/>
+    <addaction name="actionConvert_Log"/>
    </widget>
    <addaction name="menuFile"/>
   </widget>
@@ -960,6 +961,14 @@ Sign</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="actionConvert_Log">
+   <property name="text">
+    <string>Convert Log</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+C</string>
    </property>
   </action>
  </widget>

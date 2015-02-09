@@ -3,6 +3,10 @@
 
 #include <QElapsedTimer>
 #include <QDir>
+#include <QJsonObject>
+#include <QJsonDocument>
+#include <JlCompress.h>
+#include <QDebug>
 
 namespace misc {
 
@@ -27,7 +31,7 @@ bool loadObj(const QString filename, T& obj) {
 }
 
 template<class T>
-bool saveJson(const QString filename, const T& obj) {
+bool saveJson(const QString filename, const T& obj, bool compressed = true) {
     QFile file(filename);
     QDir().mkpath(QFileInfo(file).absolutePath());
     if (!file.open(QIODevice::WriteOnly))
@@ -37,6 +41,11 @@ bool saveJson(const QString filename, const T& obj) {
     obj.write(json_obj);
     QJsonDocument doc(json_obj);
     file.write(doc.toJson());
+    file.close();
+    if (compressed) {
+        JlCompress::compressFile(filename+".zip", filename);
+        file.remove();
+    }
     return true;
 }
 
