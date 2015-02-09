@@ -64,6 +64,14 @@ private slots:
 
     void on_actionConvert_Log_triggered();
 
+    void on_eyetracker_clicked();
+
+    void on_vp_id_valueChanged(int arg1);
+
+    void on_current_condition_currentIndexChanged(int index);
+
+    void on_reset_clicked();
+
 private:
     Ui::MainWindow *ui;
     Car car;

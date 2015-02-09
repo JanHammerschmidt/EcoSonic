@@ -67,6 +67,9 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     last_tab = ui->tabWidget->currentIndex();
+#ifdef CAR_VIZ_FINAL_STUDY
+    ui->tabWidget->setEnabled(false);
+#endif
 
     Track::images.load_sign_images();
     ui->track_editor->init(ui->track_width, ui->track_points, ui->track_show_control_points,
@@ -75,7 +78,8 @@ MainWindow::MainWindow(QWidget *parent)
                            ui->track_tl_distance, ui->lbl_min_time, ui->lbl_max_time, ui->lbl_distance,
                            ui->steer_intensity, ui->steer_time, ui->steer_fade_in, ui->steer_fade_out,
                            ui->lbl_steer_intensity, ui->lbl_steer_time, ui->lbl_steer_fade_in, ui->lbl_steer_fade_out);
-    ui->car_viz->init(&car, ui->start, ui->throttle, ui->breaking, ui->gear, this, &osc);
+    ui->car_viz->init(&car, ui->start, ui->eyetracker, ui->vp_id, ui->current_condition, ui->next_condition,
+                      ui->run, ui->throttle, ui->breaking, ui->gear, this, &osc);
     QObject::connect(ui->car_viz, SIGNAL(slow_tick(qreal,qreal, ConsumptionMonitor&)),
                      this, SLOT(update_plots(qreal,qreal,ConsumptionMonitor&)));
     QObject::connect(&car.gearbox, &Gearbox::gear_changed, [=](int gear){
@@ -161,6 +165,8 @@ void MainWindow::update_plots(qreal, qreal elapsed, ConsumptionMonitor& consumpt
 
 void MainWindow::on_tabWidget_currentChanged(int index)
 {
+//    if (index != 1)
+//        ui->tabWidget->setTab
     if (last_tab == 2) {
         ui->car_viz->copy_from_track_editor(ui->track_editor);
     }
@@ -213,4 +219,33 @@ void MainWindow::on_actionConvert_Log_triggered()
     } else {
         ui->car_viz->start();
     }
+}
+
+
+void MainWindow::on_eyetracker_clicked()
+{
+    ui->car_viz->toggle_connect_to_eyetracker();
+}
+
+void MainWindow::on_vp_id_valueChanged(int arg1)
+{
+    if (arg1 % 1000 > 6) {
+        ui->vp_id->setValue((arg1 / 1000 + 1) * 1000 + 1);
+        return;
+    }
+    if (arg1 % 1000 < 1) {
+        ui->vp_id->setValue((arg1 / 1000 - 1) * 1000 + 6);
+        return;
+    }
+    ui->car_viz->set_condition_order(arg1 % 1000);
+}
+
+void MainWindow::on_current_condition_currentIndexChanged(int index)
+{
+    ui->car_viz->set_condition((Condition) index);
+}
+
+void MainWindow::on_reset_clicked()
+{
+    ui->car_viz->reset();
 }

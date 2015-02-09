@@ -54,10 +54,16 @@ QCarViz::QCarViz(QWidget *parent)
     QObject::connect(&tick_timer, SIGNAL(timeout()), this, SLOT(tick()));
 }
 
-void QCarViz::init(Car* car, QPushButton* start_button, QSlider* throttle, QSlider* breaking, QSpinBox* gear, QMainWindow* main_window, OSCSender* osc, bool start)
+void QCarViz::init(Car* car, QPushButton* start_button, QCheckBox* eye_tracker_connected_checkbox, QSpinBox* vp_id, QComboBox* current_condition, QComboBox* next_condition,
+                   QSpinBox *run, QSlider* throttle, QSlider* breaking, QSpinBox* gear, QMainWindow* main_window, OSCSender* osc, bool start)
 {
     this->car = car;
     this->start_button = start_button;
+    eye_tracker_connected_checkbox_ = eye_tracker_connected_checkbox;
+    vp_id_ = vp_id;
+    current_condition_ = current_condition;
+    next_condition_ = next_condition;
+    run_ = run;
     throttle_slider = throttle;
     breaking_slider = breaking;
     gear_spinbox = gear;
@@ -76,8 +82,9 @@ void QCarViz::init(Car* car, QPushButton* start_button, QSlider* throttle, QSlid
     this->osc = osc;
 
     program_start_time = QDateTime::currentDateTime();
+    set_condition_order(1);
 
-    QTimer::singleShot(300, this, [this] { connect_to_eyetracker(); });
+    QTimer::singleShot(300, this, [this] { toggle_connect_to_eyetracker(); });
 
     if (start)
         QTimer::singleShot(500, this, SLOT(start()));
@@ -123,31 +130,51 @@ void QCarViz::trigger_arrow()
     turnSignObserver->trigger(&sign, time_elapsed());
 }
 
+void QCarViz::reset() {
+    current_pos = initial_pos;
+    car->gearbox.clutch.disengage();
+    if (!replay)
+        car->engine.reset();
+    car->gearbox.reset();
+    car->speed = 0;
+    consumption_monitor.reset();
+    if (!replay)
+        track_started = false;
+    for (Track::Sign& s : track.signs) {
+        if (s.type == Track::Sign::TrafficLight)
+            s.traffic_light_state = Track::Sign::Red;
+    }
+    for (auto o : signObserver)
+        o->reset();
+    update();
+}
+
 void QCarViz::start() {
     if (current_pos >= track_path.length()) {
-        current_pos = initial_pos;
-        car->gearbox.clutch.disengage();
-        if (!replay)
-            car->engine.reset();
-        car->gearbox.reset();
-        car->speed = 0;
-        consumption_monitor.reset();
-        if (!replay)
-            track_started = false;
-        for (Track::Sign& s : track.signs) {
-            if (s.type == Track::Sign::TrafficLight)
-                s.traffic_light_state = Track::Sign::Red;
+        const int run = run_->value();
+        if (run >= CAR_VIZ_MAX_RUNS) {
+            const int next_condition = next_condition_->currentIndex();
+            if (next_condition >= (int) NO_CONDITION) {
+                QMessageBox::information(this, "EcoSonic", "This was the last condition.\n\nEnd of Trial!");
+                return;
+            }
+            set_condition((Condition) next_condition);
+            run_->setValue(1);
+            QMessageBox::information(this, "EcoSonic", "New condition: " + current_condition_->currentText());
+        } else {
+            run_->setValue(run + 1);
         }
-        for (auto o : signObserver)
-            o->reset();
-//        turnSignObserver->reset();
-//        stopSignObserver->reset();
+        reset();
     }
     time_delta.start();
     tick_timer.start();
     started = true;
     osc->send_float("/startEngine", 0);
     start_button->setText("Pause");
+    vp_id_->setReadOnly(true);
+    current_condition_->setEnabled(false);
+    update();
+
 }
 
 bool QCarViz::load_log(const QString filename, const bool start) {
@@ -365,7 +392,7 @@ bool QCarViz::tick() {
             car->braking = breaking_slider->value() / 100.;
         }
         if (keyboard_input.connect()) {
-            connect_to_eyetracker();
+            toggle_connect_to_eyetracker();
         }
         //speedObserver->tick();
         if (!replay) {

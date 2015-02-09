@@ -97,8 +97,9 @@ signals:
     void destroyed();
 
 public:
-    EyeTrackerClient(QCarViz* car_viz)
+    EyeTrackerClient(QCarViz* car_viz, QCheckBox* connected_checkbox)
         : car_viz(car_viz)
+        , connected_checkbox_(connected_checkbox)
     { }
 
     void disconnect() {
@@ -118,18 +119,22 @@ public:
             //, &EyeTrackerClient::tcp_error(SocketAccessError));
 
         qDebug() << "connecting to EyeTracker-Server...";
+        connected_checkbox_->setCheckState(Qt::PartiallyChecked);
         //socket->connectToHost("127.0.0.1", 7767);
         socket->connectToHost("192.168.0.10", 7767);
         if (!socket->waitForConnected(2000)) {
             qDebug() << "connecting failed!";
+            connected_checkbox_->setCheckState(Qt::Unchecked);
             return;
         }
+        connected_checkbox_->setCheckState(Qt::Checked);
         while (!quit) {
             if (socket->waitForReadyRead(100))
                 read();
         }
         socket->abort();
         socket->close();
+        connected_checkbox_->setCheckState(Qt::Unchecked);
         qDebug() << "stopping eye tracker thread";
     }
 
@@ -152,10 +157,18 @@ protected:
     void read();
 
     QCarViz* car_viz;
+    QCheckBox* connected_checkbox_;
     //QTcpSocket socket;
     std::auto_ptr<QTcpSocket> socket;
     bool first_read = true;
     bool quit = false;
+};
+
+enum Condition {
+    VIS = 0,
+    SLP = 1,
+    CNT = 2,
+    NO_CONDITION = 3,
 };
 
 class QCarViz : public QWidget
@@ -174,9 +187,40 @@ public:
         }
     }
 
-    void init(Car* car, QPushButton* start_button, QSlider* throttle, QSlider* breaking, QSpinBox* gear, QMainWindow* main_window, OSCSender* osc, bool start = true);
+    void init(Car* car, QPushButton* start_button, QCheckBox* eye_tracker_connected_checkbox, QSpinBox *vp_id, QComboBox* current_condition, QComboBox* next_condition,
+              QSpinBox* run, QSlider* throttle, QSlider* breaking, QSpinBox* gear, QMainWindow* main_window, OSCSender* osc, bool start = true);
 
     void copy_from_track_editor(QTrackEditor* track_editor);
+
+    void set_condition(Condition cond) {
+        int sound_modus = (int) cond;
+        update_sound_modus(sound_modus);
+        current_condition_->setCurrentIndex(sound_modus);
+
+        // always set next condition as well
+        int idx = condition_order.indexOf(cond);
+        Q_ASSERT(idx >= 0 && idx < 3);
+        next_condition_->setCurrentIndex(idx == 2 ? 3 : (int) condition_order[idx + 1]);
+
+        // reset run-counter
+        run_->setValue(1);
+    }
+
+    void set_condition_order(const int id) {
+        Q_ASSERT(id > 0 && id <= 6);
+        condition_order.clear();
+        switch (id) {
+            case 1: condition_order << VIS << SLP << CNT; break;
+            case 2: condition_order << SLP << VIS << CNT; break;
+            case 3: condition_order << CNT << SLP << VIS; break;
+            case 4: condition_order << VIS << CNT << SLP; break;
+            case 5: condition_order << SLP << CNT << VIS; break;
+            case 6: condition_order << CNT << VIS << SLP; break;
+        }
+        stop();
+        reset();
+        set_condition(condition_order[0]);
+    }
 
     void update_sound_modus(int const sound_modus) {
         if (sound_modus != this->sound_modus) {
@@ -211,6 +255,8 @@ public slots:
             update_sound_modus(0);
         }
         start_button->setText("Cont.");
+        vp_id_->setReadOnly(false);
+        current_condition_->setEnabled(true);
         //save_svg();
     }
 
@@ -284,6 +330,9 @@ protected:
     }
 
     void prepare_track();
+public:
+    void reset();
+protected:
 
     void save_svg() {
         QSvgGenerator generator;
@@ -302,13 +351,13 @@ protected:
     qreal time_elapsed() {
         return time_delta.get_elapsed() - track_started_time;
     }
-
-    void connect_to_eyetracker() {
+public:
+    void toggle_connect_to_eyetracker() {
         if (eye_tracker_client != nullptr) {
             eye_tracker_client->disconnect();
             eye_tracker_client = nullptr;
         } else {
-            eye_tracker_client = new EyeTrackerClient(this);
+            eye_tracker_client = new EyeTrackerClient(this, eye_tracker_connected_checkbox_);
             connect(eye_tracker_client, &EyeTrackerClient::destroyed, [this](){
                 //qDebug() << "eye_tracker_client = nullptr";
                 eye_tracker_client = nullptr;
@@ -316,7 +365,7 @@ protected:
             eye_tracker_client->start();
         }
     }
-
+protected:
     void draw(QPainter& painter);
 
     virtual void paintEvent(QPaintEvent *) {
@@ -398,8 +447,14 @@ protected:
     QPointF eye_tracker_point;
     qreal t_last_eye_tracking_update = 0;
     EyeTrackerClient* eye_tracker_client = nullptr;
+    QCheckBox* eye_tracker_connected_checkbox_ = nullptr;
     bool show_eye_tracker_point = false;
     TextHint text_hint;
+    QSpinBox* vp_id_;
+    QVector<Condition> condition_order;
+    QComboBox* current_condition_;
+    QComboBox* next_condition_;
+    QSpinBox* run_;
 };
 
 
