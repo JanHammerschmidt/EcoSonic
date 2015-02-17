@@ -74,6 +74,7 @@ void QCarViz::init(Car* car, QPushButton* start_button, QCheckBox* eye_tracker_c
     signObserver.push_back(new SignObserver<TrafficLightObserver>(*this));
     signObserver.push_back(new SignObserver<SpeedObserver>(*this));
     //speedObserver.reset(new SpeedObserver(*this, *osc));
+    tooslow_observer_.reset(new TooSlowObserver(*this, *osc));
 
     QObject::connect(start_button, SIGNAL(clicked()),
                      this, SLOT(start_stop()));
@@ -130,8 +131,21 @@ void QCarViz::trigger_arrow()
     turnSignObserver->trigger(&sign, time_elapsed());
 }
 
+void QCarViz::log_run()
+{
+       car->log->items_json.resize(car->log->items.size());
+       log_run_ = true;
+       start();
+       while (tick()) {
+            ;
+       }
+       log_run_ = false;
+       car->log->log_run_finished = true;
+}
+
 void QCarViz::reset() {
     current_pos = initial_pos;
+    steering = 0;
     car->gearbox.clutch.disengage();
     if (!replay)
         car->engine.reset();
@@ -146,23 +160,26 @@ void QCarViz::reset() {
     }
     for (auto o : signObserver)
         o->reset();
+    tooslow_observer_->reset();
     update();
 }
 
 void QCarViz::start() {
     if (current_pos >= track_path.length()) {
-        const int run = run_->value();
-        if (run >= CAR_VIZ_MAX_RUNS) {
-            const int next_condition = next_condition_->currentIndex();
-            if (next_condition >= (int) NO_CONDITION) {
-                QMessageBox::information(this, "EcoSonic", "This was the last condition.\n\nEnd of Trial!");
-                return;
+        if (!replay) {
+            const int run = run_->value();
+            if (run >= CAR_VIZ_MAX_RUNS) {
+                const int next_condition = next_condition_->currentIndex();
+                if (next_condition >= (int) NO_CONDITION) {
+                    QMessageBox::information(this, "EcoSonic", "This was the last condition.\n\nEnd of Trial!");
+                    return;
+                }
+                set_condition((Condition) next_condition);
+                run_->setValue(1);
+                QMessageBox::information(this, "EcoSonic", "New condition: " + current_condition_->currentText());
+            } else {
+                run_->setValue(run + 1);
             }
-            set_condition((Condition) next_condition);
-            run_->setValue(1);
-            QMessageBox::information(this, "EcoSonic", "New condition: " + current_condition_->currentText());
-        } else {
-            run_->setValue(run + 1);
         }
         reset();
     }
@@ -174,7 +191,6 @@ void QCarViz::start() {
     vp_id_->setReadOnly(true);
     current_condition_->setEnabled(false);
     update();
-
 }
 
 bool QCarViz::load_log(const QString filename, const bool start) {
@@ -218,6 +234,7 @@ void QCarViz::prepare_track() {
     //speedObserver->tick();
     for (auto o : signObserver)
         o->reset();
+    tooslow_observer_->reset();
     fill_trees();
 }
 
@@ -229,7 +246,7 @@ bool QCarViz::tick() {
     if (replay == true) {
         if (replay_index >= car->log->items.size()) {
             qDebug() << "elapsed_time:" << time_elapsed();
-            qDebug() << "deciliters_used:" << consumption_monitor.liters_used;
+            qDebug() << "deciliters_used:" << consumption_monitor.liters_used * 10;
             stop();
             return false;
         }
@@ -241,6 +258,12 @@ bool QCarViz::tick() {
         eye_tracker_point = log_item.eye_tracker_point;
         user_steering = log_item.steering;
         changed = true;
+        if (log_run_) {
+            LogItemJson& log_item_json = car->log->items_json[replay_index];
+            (LogItem&) log_item_json = log_item;
+            log_item_json.speed = get_kmh();
+            log_item_json.position = current_pos;
+        }
         replay_index++;
         time_delta.add_dt(dt);
 
@@ -330,20 +353,24 @@ bool QCarViz::tick() {
             track_started_time = time_delta.get_elapsed();
             car->log.reset(new Log(car, this, &track));
             car->log->initial_angular_velocity = car->engine.angular_velocity;
+            qDebug() << "starting new log";
         }
     }
     steer(user_steering);
 
     for (auto o : signObserver)
         o->tick(replay, t, dt);
+    tooslow_observer_->tick();
 
     if (replay) {
         for ( ; ; ) {
             LogEvent* event = car->log->next_event(replay_index);
             if (!event)
                 break;
-            // all events so far are trafficViolations!
-            show_traffic_violation((TrafficViolation) event->type); // carful! (casting)
+            if (event->type == LogEvent::TooSlow) {
+                show_too_slow();
+            } else
+                show_traffic_violation((TrafficViolation) event->type); // carful! (casting)
             qDebug() << "Log:" << event->type;
         }
     }

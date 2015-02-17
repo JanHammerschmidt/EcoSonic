@@ -12,6 +12,7 @@ public:
     { }
     void send_float(const char* msg, double val)
     {
+        //qDebug() << "osc:" << msg << val;
         osc::OutboundPacketStream p(&buffer[0], buffer.size());
         p << osc::BeginBundleImmediate
             << osc::BeginMessage( msg )

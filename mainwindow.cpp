@@ -208,8 +208,7 @@ void MainWindow::on_actionConvert_Log_triggered()
     QString filename = QFileDialog::getOpenFileName(this, "Open Log", QDir::homePath()+"/EcoSonic", "Log Files (*.log)");
     if (filename != "" && QFile(filename).exists()) {
         ui->car_viz->load_log(filename, false);
-//        while (ui->car_viz->tick())
-//        { }
+        ui->car_viz->log_run();
         const int dot = filename.lastIndexOf('.');
         if (dot != -1)
             filename = filename.left(dot);

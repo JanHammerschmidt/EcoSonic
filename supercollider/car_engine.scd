@@ -136,9 +136,11 @@ SynthDef(\engine, {
 	~engine_stream.free;
 	~engine_loudness.free;
 	~engine = Synth(\engine);
-	~engine_stream = {
-		Out.ar(0, ~engine_out.ar);
-	}.play(addAction:\addToTail);
+	{
+		~engine_stream = {
+				Out.ar(0, ~engine_out.ar);
+		}.play(addAction:\addToTail);
+	}.defer(0.2);
 	~engine_loudness = {
 		var fft = FFT(~fft_buf, ~engine_out.ar[0]);
 		var sone = LPF.kr(Loudness.kr(fft), 1);
@@ -151,14 +153,16 @@ SynthDef(\engine, {
 	"stopEngine".postln;
 	~unset_rpm_handler.value;
 	~engine.set(\engineSpeed, 0);
-	{
-		~engine.free;
-		~engine = nil;
-		~engine_stream.free;
-		~engine_stream = nil;
-		~engine_loudness.free;
-		~engine_loudness = nil;
-	}.defer(1);
+	(~engine !== nil).if({
+		{
+			~engine.free;
+			~engine = nil;
+			~engine_stream.free;
+			~engine_stream = nil;
+			~engine_loudness.free;
+			~engine_loudness = nil;
+		}.defer(1);
+	});
 };
 // define OSC functions
 OSCdef(\msg_startEngine, {|m|
@@ -181,7 +185,7 @@ OSCdef(\msg_stopEngine, {|m|
 	OSCdef(\msg_rpm, {|m|},'/rpm');
 };
 OSCdef(\msg_honk, {|m|
-	{ PlayBuf.ar(2, ~buf_honk, BufRateScale.kr(~buf_honk)) }.play();
+	{ PlayBuf.ar(2, ~buf_honk, BufRateScale.kr(~buf_honk)) * 0.5 }.play();
 }, '/honk');
 OSCdef(\msg_flash, {|m|
 	{ PlayBuf.ar(1, ~buf_flash, BufRateScale.kr(~buf_flash))!2 }.play();

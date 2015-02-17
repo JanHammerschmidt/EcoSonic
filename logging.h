@@ -9,6 +9,7 @@
 #include "misc.h"
 
 #define LOG_VERSION "1.6"
+#define LOG_VERSION_JSON "1.0"
 
 struct LogItem
 {
@@ -18,6 +19,12 @@ struct LogItem
     QPointF eye_tracker_point;
     qreal steering;
     qreal dt;
+};
+
+struct LogItemJson : public LogItem
+{
+    qreal speed; // kmh
+    qreal position; // on the track_path
     void write(QJsonObject& j) {
         j["throttle"] = throttle;
         j["braking"] = braking;
@@ -25,6 +32,8 @@ struct LogItem
         //j["eye_tracker_point"] = !!
         j["steering"] = steering;
         j["dt"] = dt;
+        j["speed"] = speed;
+        j["position"] = position;
     }
 };
 
@@ -33,8 +42,21 @@ struct LogEvent {
         Speeding,
         StopSign,
         TrafficLight,
+        TooSlow,
     } type;
     int index;
+    void write(QJsonObject& j) {
+        j["index"] = index;
+        const char* stype = nullptr;
+        switch (type) {
+            case Speeding: stype = "Speeding"; break;
+            case StopSign: stype = "StopSign"; break;
+            case TrafficLight: stype = "TrafficLight"; break;
+            default: Q_ASSERT(false);
+        }
+        Q_ASSERT(stype != nullptr);
+        j["type"] = QString(stype);
+    }
 };
 
 struct Log
@@ -63,9 +85,11 @@ struct Log
     bool save_json(const QString filename) const { return misc::saveJson(filename, *this); }
 
     void write(QJsonObject& j) const {
+        Q_ASSERT(log_run_finished);
         j["condition"] = sound_modus == 0 ? "VIS" : (sound_modus == 1 ? "SLP" : (sound_modus == 2 ? "CPB" : "UNDEFINED!"));
+        j["log_version"] = LOG_VERSION_JSON;
         QJsonArray jitems;
-        for (auto i : items) {
+        for (auto i : items_json) {
             QJsonObject ji;
             i.write(ji);
             jitems.append(ji);
@@ -78,6 +102,7 @@ struct Log
     Track* track;
     QList<LogItem> items;
     QVector<LogEvent> events;
+    QVector<LogItemJson> items_json;
     qreal elapsed_time = 0;
     qreal liters_used = 0;
     int sound_modus = 0;
@@ -85,6 +110,7 @@ struct Log
     QString version = LOG_VERSION;
     bool valid = true;
     LogEvent* next_log_event = nullptr;
+    bool log_run_finished = false;
 };
 
 
@@ -115,6 +141,7 @@ inline QDataStream &operator>>(QDataStream &in, Log &log) {
     log.valid = (log.version == QString(LOG_VERSION));
     if (log.events.size() > 0)
         log.next_log_event = &log.events[0];
+    log.log_run_finished = false;
     return in;
 }
 

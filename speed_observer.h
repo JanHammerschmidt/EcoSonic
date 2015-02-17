@@ -3,16 +3,17 @@
 
 #include <QtConcurrent>
 #include "qcarviz.h"
+#include "logging.h"
 
-//#define NEXT_SIGN_DISTANCE 800 // ??
-//#define MIN_DRIVING_DISTANCE 400 // ??
-//#define TOO_SLOW_TOLERANCE 0.2
-#define TOO_FAST_TOLERANCE 0.1
-#define TOO_FAST_TOLERANCE_OFFSET 10
-//#define MAX_TOO_FAST 2000 // ms
-//#define MAX_TOO_SLOW 3000 // ms
+// TODO: put these config values into the log!
+#define TOO_FAST_TOLERANCE 0.1 // PERCENT OF CURRENT SPEED
+#define TOO_FAST_TOLERANCE_OFFSET 10 // KMH OFFSET
+#define TOO_SLOW_TOLERANCE 0.1 // percent of current speed
+#define TOO_SLOW_TOLERANCE_OFFSET 10 // kmh offset
 #define COOLDOWN_TIME_SPEEDING 10000 // how long "nothing" happens after a speeding 'flash'
-//#define COOLDOWN_TIME 3000 // how long "nothing" happens after a honking (ms)
+#define TOOSLOW_OBSERVER_ACCELERATION 0.1 // kmh per "track_path unit"
+#define TOOSLOW_OBSERVER_SLOWING_DOWN 0.05
+#define TOOSLOW_OBSERVER_COOLDOWN 8000 //how long nothing happens after getting "honked"
 
 class SignObserverBase
 {
@@ -223,16 +224,154 @@ protected:
     qreal t_stages[3];
 };
 
-//struct TooSlowObserver {
-//    TooSlowObserver(QCarViz& car_viz) : car_viz(car_viz), track(car_viz.track) { }
-//    void reset() {
-//        const QVector<Track::Sign>& signs = track.signs;
+struct TooSlowObserver {
+    TooSlowObserver(QCarViz& car_viz, OSCSender& osc) : car_viz(car_viz), track(car_viz.track), osc_(osc) {
+        cooldown_timer_.start();
+    }
+    void reset() {
+        min_speed_.clear();
+        const qreal track_length = car_viz.get_track_path().length() * track_mult;
+        min_speed_.resize((int) track_length + 5);
+        min_speed_.fill(0);
+        const QVector<Track::Sign>& signs = track.signs;
 
-//    }
+        // get all speed signs
+        QVector<const Track::Sign*> speed_signs;
+        for (const Track::Sign& s : signs) {
+            if (s.is_speed_sign())
+                speed_signs.push_back(&s);
+        }
+        if (!speed_signs.size())
+            return;
 
-//    QCarViz& car_viz;
-//    Track& track;
-//};
+        // set speed based on speed signs
+        for (int i = 0; i < speed_signs.size(); i++) {
+            const Track::Sign* const cur = speed_signs[i];
+            const Track::Sign* const prev = !i ? nullptr : speed_signs[i-1];
+            const Track::Sign* const next = i+1 >= speed_signs.size() ? nullptr : speed_signs[i+1];
+            const int start = (int) ceil(speed_signs[i]->at_length * track_mult);
+            const int end = (int) floor(next ? next->at_length * track_mult : track_length);
+            const qreal limit = honk_limit(cur->speed_limit());
+            const qreal prev_limit = prev ? honk_limit(prev->speed_limit()) : 200;
+            const qreal next_limit = next ? honk_limit(next->speed_limit()) : limit;
+
+            for (int j = start; j <= end; j++)
+                set_min_speed(j, limit);
+
+            if (prev_limit < limit) {
+                qreal tlimit = prev_limit;
+                const qreal inc = TOOSLOW_OBSERVER_ACCELERATION / track_mult;
+                for (int j = start; j <= end; j++) {
+                    tlimit += inc;
+                    set_min_speed(j, tlimit);
+                    if (tlimit > limit)
+                        break;
+                }
+            }
+            if (next_limit < limit) {
+                qreal tlimit = next_limit;
+                const qreal inc = TOOSLOW_OBSERVER_SLOWING_DOWN / track_mult;
+                for (int j = end-1; j >= start; j--) {
+                    tlimit += inc;
+                    set_min_speed(j, tlimit);
+                    if (tlimit > limit)
+                        break;
+                }
+            }
+        }
+        for (int j = 50 * track_mult; j >= 0; j--)
+            set_min_speed(j, -1);
+        insert_stop_sign(40, track_length);
+
+        // get all stop signs & traffic lights
+        QVector<const Track::Sign*> stop_signs;
+        for (const Track::Sign& s : signs) {
+            if (s.type == Track::Sign::Stop || s.type == Track::Sign::TrafficLight)
+                stop_signs.push_back(&s);
+        }
+        if (!stop_signs.size())
+            return;
+
+        for (const Track::Sign* const s : stop_signs) {
+            const int pos = (int) s->at_length;
+            insert_stop_sign(pos, track_length);
+        }
+
+        struct speed {
+            speed(QVector<qreal>& min_speed) : min_speed_(min_speed) {}
+            void write(QJsonObject& j) const {
+                QJsonArray jitems;
+                for (auto i : min_speed_) {
+                    jitems.append(i);
+                }
+                j["speed"] = jitems;
+            }
+            const QVector<qreal>& min_speed_;
+        };
+
+        speed s(min_speed_);
+        misc::saveJson("/Users/jhammers/test.json", s);
+    }
+    void insert_stop_sign(const int pos, const int track_length) {
+        const int left = boost::algorithm::clamp((pos - 30) * track_mult, 0, track_length);
+        const int right = boost::algorithm::clamp((pos + 5) * track_mult, 0, track_length);
+        for (int j = left+1; j < right; j++)
+            set_min_speed(j, -1);
+        qreal inc = TOOSLOW_OBSERVER_SLOWING_DOWN / track_mult;
+        qreal tlimit = 0;
+        for (int j = left; j >= 0; j--) {
+            tlimit += inc;
+            set_min_speed(j, tlimit);
+        }
+        inc = TOOSLOW_OBSERVER_ACCELERATION / track_mult;
+        tlimit = 0;
+        for (int j = right; j <= track_length; j++) {
+            tlimit += inc;
+            set_min_speed(j, tlimit);
+        }
+    }
+
+    inline void set_min_speed(const int pos, const qreal speed) {
+        Q_ASSERT(pos >= 0 && pos < min_speed_.size());
+        qreal& val = min_speed_[pos];
+        if (!val || speed < val)
+            val = speed;
+    }
+
+    inline qreal min_speed(qreal pos) const {
+        pos *= track_mult;
+        const int p1 = boost::algorithm::clamp((int) floor(pos), 0, min_speed_.size() - 1);
+        const int p2 = boost::algorithm::clamp((int) ceil(pos), 0, min_speed_.size() - 1);
+        //Q_ASSERT(p1 >= 0 && p2 >= 0);
+        const qreal v = pos - floor(pos);
+        return v * min_speed_[p2] + (1-v) * min_speed_[p1];
+    }
+    static inline qreal honk_limit(qreal l) {
+        return l * (1-TOO_SLOW_TOLERANCE) - TOO_SLOW_TOLERANCE_OFFSET;
+    }
+
+    void tick() {
+        const qreal pos = car_viz.get_current_pos();
+        const qreal slow_speed_threshold = min_speed(pos);
+        const qreal current_speed = car_viz.get_kmh();
+        if (current_speed < slow_speed_threshold && cooldown_timer_.elapsed() > TOOSLOW_OBSERVER_COOLDOWN) {
+            qDebug() << "Too Slow!";
+            if (!car_viz.is_replaying()) {
+                car_viz.log()->add_event(LogEvent::TooSlow);
+                car_viz.show_too_slow();
+            }
+            cooldown_timer_.start();
+        }
+    }
+
+    const qreal track_mult = 0.5; // check min_speed()! (current_pos * track_mult) is the position in the min_speed_ array
+                                  // the bigger track_mult is, the more precise (and slow) the calculation is
+    QVector<qreal> min_speed_;
+    QCarViz& car_viz;
+    Track& track;
+    OSCSender& osc_;
+    QElapsedTimer cooldown_timer_;
+};
 
 //struct SpeedObserver {
 //    SpeedObserver(QCarViz& carViz, OSCSender& osc)

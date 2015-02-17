@@ -42,7 +42,7 @@ static std::mt19937_64 rng(std::random_device{}());
 
 class SignObserverBase;
 class TurnSignObserver;
-//struct SpeedObserver;
+struct TooSlowObserver;
 class QCarViz;
 
 struct TextHint {
@@ -295,11 +295,17 @@ public:
 
     void log_traffic_violation(const TrafficViolation violation);
     void show_traffic_violation(const TrafficViolation violation);
+    void show_too_slow() {
+        osc->call("/honk");
+        text_hint.showText("You are driving a little too slow..");
+    }
 
     QPointF& get_eye_tracker_point() { return eye_tracker_point; }
 
     qreal get_kmh() { return Gearbox::speed2kmh(car->speed); }
     qreal get_user_steering() { return user_steering; }
+
+    const QPainterPath& get_track_path() const { return track_path; }
 
     void steer(const qreal val) {
         steering = boost::algorithm::clamp(steering + val, -1, 1);
@@ -332,6 +338,8 @@ protected:
     void prepare_track();
 public:
     void reset();
+    Log* log() { return car->log.get(); }
+    bool is_replaying() { return replay; }
 protected:
 
     void save_svg() {
@@ -365,6 +373,8 @@ public:
             eye_tracker_client->start();
         }
     }
+    void log_run();
+
 protected:
     void draw(QPainter& painter);
 
@@ -411,7 +421,7 @@ protected:
     const qreal initial_pos = 40;
     qreal current_pos = initial_pos; // current position of the car. max is: track_path.length()
     QImage car_img;
-    //std::auto_ptr<SpeedObserver> speedObserver;
+    std::auto_ptr<TooSlowObserver> tooslow_observer_;
     std::vector<SignObserverBase*> signObserver;
     TurnSignObserver* turnSignObserver = nullptr;
 //    std::auto_ptr<TurnSignObserver> turnSignObserver;
@@ -455,6 +465,7 @@ protected:
     QComboBox* current_condition_;
     QComboBox* next_condition_;
     QSpinBox* run_;
+    bool log_run_ = false;
 };
 
 
