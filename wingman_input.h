@@ -48,6 +48,8 @@ public:
             wheel_element = dev->GetElement(8);
             left_button_element = dev->GetElement(6);
             right_button_element = dev->GetElement(7);
+            left_back_button_element = dev->GetElement(4);
+            right_back_button_element = dev->GetElement(5);
         }
     }
 
@@ -80,6 +82,17 @@ public:
         return update;
     }
 
+    bool update_back_buttons() {
+        bool update = false;
+        bool old_val = left_right_cur;
+        left_right_cur = left_back_button_element->GetValue() && right_back_button_element->GetValue();
+        if (left_right_cur && old_val != left_right_cur) {
+            left_right_click_ = true;
+            update = true;
+        }
+        return update;
+    }
+
     const int neutral_range = 7;
     double gas() { return value < 255 ? (255-value)/255. : 0; }
     double brake() { return value > 255 ? (value-255)/65280. : 0; }
@@ -105,6 +118,11 @@ public:
         right_button_click = false;
         return ret;
     }
+    bool left_right_click() {
+        const bool ret = left_right_click_;
+        left_right_click_ = false;
+        return ret;
+    }
 
     bool valid() {
         return !!dev && !!element && !!wheel_element;
@@ -115,13 +133,17 @@ protected:
     IHIDElement* element; // this is the element for gas & braking
     IHIDElement* wheel_element;
     IHIDElement* left_button_element;
-    IHIDElement* right_button_element;
+    IHIDElement* right_button_element;    
+    IHIDElement* left_back_button_element;
+    IHIDElement* right_back_button_element;
     int value = 255; // this is for gas & braking
     int wheel_value = 128;
     bool left_button_cur = false;
     bool right_button_cur = false;
     bool left_button_click = false;
     bool right_button_click = false;
+    bool left_right_cur = false;
+    bool left_right_click_ = false;
 };
 
 #endif // NO_HID

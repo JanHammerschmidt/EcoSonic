@@ -281,7 +281,7 @@ public:
 
 public slots:
     void stop(bool temporary_stop = false) {
-        tick_timer.stop();
+        //tick_timer.stop();
         started = false;
         if (!temporary_stop) {
             osc->call("/stopEngine");

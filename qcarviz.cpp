@@ -242,7 +242,15 @@ void QCarViz::prepare_track() {
 }
 
 bool QCarViz::tick() {
-    Q_ASSERT(started);
+    //Q_ASSERT(started);
+    if (!started) {
+        if (wingman_input.update_back_buttons()) {
+            if (wingman_input.left_right_click()) {
+                start_stop();
+            }
+        }
+        return false;
+    }
     qreal dt;
     static bool changed = false; // if throttle / gas have changed (for the sliders in the gui)
     user_steering = 0; // user steering (or from replay)
@@ -353,6 +361,11 @@ bool QCarViz::tick() {
                 if (wingman_input.right_click())
                     car->gearbox.gear_up();
                 gear_spinbox->setValue(car->gearbox.get_gear()+1);
+            }
+            if (wingman_input.update_back_buttons()) {
+                if (wingman_input.left_right_click()) {
+                    start_stop();
+                }
             }
             wingman_input.update_wheel();
             if (!wingman_input.wheel_neutral()) {
