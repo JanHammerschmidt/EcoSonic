@@ -97,13 +97,14 @@ OSCdef(\msg_vol_down, {|m| ~fedi_stream_vol_add.value(-0.2)}, '/vol_down');
 			{
 				var min_rpm = ~uphill_resistance.linlin(0, 3000, 0.3, 0.45, \min); // 0.38
 				~slurp_lpf.set(\m, m[1].linlin(min_rpm, 0.65, 0,1.2));
+				//m[1].linlin(min_rpm, 0.65, 0,1.2).postln
 		    });
 		//~lpf.set(\f, m[1].linlin(0.38,1, 400,15000));
 		//m[1].postln;
 	}, '/rpm');
 	OSCdef(\msg_uphill_resistance, {|m|
 		~uphill_resistance = m[1];
-		~uphill_resistance.postln;
+		//~uphill_resistance.postln;
 	}, '/uphill_resistance');
 	{~slurp_play.value}.defer(0.2);
 };

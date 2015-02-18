@@ -120,21 +120,39 @@ public:
 
         qDebug() << "connecting to EyeTracker-Server...";
         connected_checkbox_->setCheckState(Qt::PartiallyChecked);
-        //socket->connectToHost("127.0.0.1", 7767);
+       //socket->connectToHost("127.0.0.1", 7767);
         socket->connectToHost("192.168.0.10", 7767);
         if (!socket->waitForConnected(2000)) {
             qDebug() << "connecting failed!";
             connected_checkbox_->setCheckState(Qt::Unchecked);
+            connected_checkbox_->setStyleSheet("QCheckBox { color: red }");
             return;
         }
         connected_checkbox_->setCheckState(Qt::Checked);
+        connected_checkbox_->setStyleSheet("QCheckBox { color: black }");
+        QElapsedTimer recv_timer; recv_timer.start();
+        bool recv = true;
         while (!quit) {
-            if (socket->waitForReadyRead(100))
+            if (socket->waitForReadyRead(100)) {
+                if (!recv) {
+                    qDebug() << "eyetracker: incoming data";
+                    connected_checkbox_->setStyleSheet("QCheckBox { color: black }");
+                    recv = true;
+                }
                 read();
+                recv_timer.start();
+            } else if (recv_timer.elapsed() > 3000) {
+                if (recv) {
+                    qDebug() << "eyetracker: no data!";
+                    connected_checkbox_->setStyleSheet("QCheckBox { color: red }");
+                    recv = false;
+                }
+            }
         }
         socket->abort();
         socket->close();
         connected_checkbox_->setCheckState(Qt::Unchecked);
+        connected_checkbox_->setStyleSheet("QCheckBox { color: red }");
         qDebug() << "stopping eye tracker thread";
     }
 
@@ -194,7 +212,7 @@ public:
 
     void set_condition(Condition cond) {
         int sound_modus = (int) cond;
-        update_sound_modus(sound_modus);
+        set_sound_modus(sound_modus);
         current_condition_->setCurrentIndex(sound_modus);
 
         // always set next condition as well
@@ -222,22 +240,37 @@ public:
         set_condition(condition_order[0]);
     }
 
-    void update_sound_modus(int const sound_modus) {
-        if (sound_modus != this->sound_modus) {
-            if (this->sound_modus == 1)
-                osc->call("/slurp_stop");
-            else if (this->sound_modus == 2)
-                osc->call("/pitch_stop");
-            else if (this->sound_modus == 3)
-                osc->call("/grain_stop");
+    void set_sound_modus(int const sound_modus) {
+        if (sound_modus == this->sound_modus)
+            return;
+        if (started)
+            toggle_fedi(false);
+        qDebug() << "sound modus:" << sound_modus;
+        this->sound_modus = sound_modus;
+        if (started)
+            toggle_fedi(true);
+    }
 
+    void toggle_fedi(bool const enable) {
+        if (enable) {
+            Q_ASSERT(!sound_enabled);
+            sound_enabled = true;
             if (sound_modus == 1)
                 osc->call("/slurp_start");
             else if (sound_modus == 2)
                 osc->call("/pitch_start");
             else if (sound_modus == 3)
                 osc->call("/grain_start");
-            this->sound_modus = sound_modus;
+        } else {
+            if (!sound_enabled)
+                qDebug() << "warning: stopping sound that was not started";
+            sound_enabled = false;
+            if (sound_modus == 1)
+                osc->call("/slurp_stop");
+            else if (sound_modus == 2)
+                osc->call("/pitch_stop");
+            else if (sound_modus == 3)
+                osc->call("/grain_stop");
         }
     }
 
@@ -252,7 +285,7 @@ public slots:
         started = false;
         if (!temporary_stop) {
             osc->call("/stopEngine");
-            update_sound_modus(0);
+            toggle_fedi(false);
         }
         start_button->setText("Cont.");
         vp_id_->setReadOnly(false);
@@ -298,6 +331,7 @@ public:
     void show_too_slow() {
         osc->call("/honk");
         text_hint.showText("You are driving a little too slow..");
+        //text_hint.showText("Sie fahren aktuell etwas langsam..");
     }
 
     QPointF& get_eye_tracker_point() { return eye_tracker_point; }
@@ -446,6 +480,7 @@ protected:
     qreal track_started_time = 0;
     OSCSender* osc = NULL;
     int sound_modus = 0;
+    bool sound_enabled = false;
     QDateTime program_start_time;
     bool replay = false;
     int replay_index = 0;

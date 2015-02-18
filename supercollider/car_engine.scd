@@ -131,6 +131,7 @@ SynthDef(\engine, {
 
 //start & stop engine
 ~start_engine = {
+	~engine_started = true;
 	"startEngine".postln;
 	~engine.free;
 	~engine_stream.free;
@@ -150,19 +151,20 @@ SynthDef(\engine, {
 	~set_rpm_handler.value;
 };
 ~stop_engine = {
+	~engine_started = false;
 	"stopEngine".postln;
 	~unset_rpm_handler.value;
 	~engine.set(\engineSpeed, 0);
-	(~engine !== nil).if({
-		{
+	{
+		(~engine_started.not).if({
 			~engine.free;
 			~engine = nil;
 			~engine_stream.free;
 			~engine_stream = nil;
 			~engine_loudness.free;
 			~engine_loudness = nil;
-		}.defer(1);
-	});
+		});
+	}.defer(1);
 };
 // define OSC functions
 OSCdef(\msg_startEngine, {|m|

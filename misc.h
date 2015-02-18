@@ -106,8 +106,13 @@ template<class T, class U> T interp(const T& p1, const T& p2, const U f) {
     return (1-f) * p1 + f * p2;
 }
 
-inline void draw_centered_text(QPainter& painter, QFontMetrics& fm, QString text, const QPointF pos) {
-    const QPointF p = pos + QPointF(-0.5 * fm.width(text), 0.5 * fm.height());
+inline void draw_centered_text(QPainter& painter, QFontMetrics& fm, QString text, const QPointF pos, const qreal frac = 0.3) {
+    const QPointF p = pos + QPointF(-0.5 * fm.width(text), frac * fm.height()); // eigentlich: fm.ascent() ..
+//    painter.drawEllipse(pos, 2, 2);
+//    painter.drawEllipse(pos - QPointF(0, fm.ascent()), 2, 2);
+//    painter.drawEllipse(pos - QPointF(0, fm.ascent()+fm.descent()), 2, 2);
+//    painter.drawEllipse(pos - QPointF(0, fm.ascent()+fm.descent()+1), 2, 2);
+//    painter.drawEllipse(pos - QPointF(0, fm.height()), 2, 2);
     painter.drawText(p, text);
 }
 

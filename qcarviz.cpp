@@ -110,7 +110,9 @@ void QCarViz::show_traffic_violation(const TrafficViolation violation) {
     flash_timer.start();
     QString hint;
     switch (violation) {
-        case Speeding: hint = "You were driving too fast!"; break;
+        //"Sie sind zu schnell gefahren!";
+        case Speeding: hint =  hint = "You were driving too fast!"; break;
+        // "Sie haben das Stopschild überfahren!";
         case StopSign: hint = "You didn't stop for the stop sign!"; break;
         case TrafficLight: hint = "You didn't stop for the red traffic light!"; break;
     }
@@ -186,7 +188,8 @@ void QCarViz::start() {
     time_delta.start();
     tick_timer.start();
     started = true;
-    osc->send_float("/startEngine", 0);
+    osc->call("/startEngine");
+    toggle_fedi(true);
     start_button->setText("Pause");
     vp_id_->setReadOnly(true);
     current_condition_->setEnabled(false);
@@ -215,7 +218,7 @@ bool QCarViz::load_log(const QString filename, const bool start) {
         car->engine.angular_velocity = log->initial_angular_velocity;
         printf("log: initial rpm: %.3f\n", car->engine.rpm());
         current_pos = track_path.length();
-        update_sound_modus(log->sound_modus);
+        set_sound_modus(log->sound_modus);
         if (start)
             this->start();
     }
@@ -295,9 +298,9 @@ bool QCarViz::tick() {
             //qDebug() << "trigger arrow";
             trigger_arrow();
         }
-        if (keyboard_input.keys_pressed.contains(Qt::Key_O)) // steering to the left
+        if (keyboard_input.is_key_down(Qt::Key_O)) // steering to the left
             user_steering += dt; // "reduces" steering hint
-        if (keyboard_input.keys_pressed.contains(Qt::Key_P))
+        if (keyboard_input.is_key_down(Qt::Key_P))
             user_steering -= dt;
 
 //    // manual clutch control
@@ -313,7 +316,15 @@ bool QCarViz::tick() {
     qreal t = time_elapsed();
 
     // sound modus (supercollider)
-    update_sound_modus(keyboard_input.get_sound_modus());
+    {
+        int sound_modus = -1;
+        if (keyboard_input.get_key_press(Qt::Key_0)) sound_modus = 0;
+        if (keyboard_input.get_key_press(Qt::Key_1)) sound_modus = 1;
+        if (keyboard_input.get_key_press(Qt::Key_2)) sound_modus = 2;
+        if (keyboard_input.get_key_press(Qt::Key_3)) sound_modus = 3;
+        if (sound_modus != -1)
+            set_sound_modus(sound_modus);
+    }
     // control window
     if (keyboard_input.show_control_window() && (sound_modus == 2 || sound_modus == 3))
         osc->call("/show_controls");
@@ -468,6 +479,30 @@ void QCarViz::draw(QPainter& painter)
         t.translate(0, 0.75 * height() - 0.5 * hud.height);
         painter.setTransform(t);
         hud.draw(painter, width(), car->engine.rpm(), Gearbox::speed2kmh(car->speed), consumption_monitor.liters_used); //, track.max_time, time_delta.get_elapsed() - track_started_time, track_started);
+    }
+    {
+        // draw gear indicator
+        QFont font("Eurostile", 35);
+        font.setBold(true);
+        painter.setFont(font);
+        painter.setPen(Qt::black);
+        QFontMetrics fm = painter.fontMetrics();
+        //fm.xHeight() // !! ??
+        t.reset();
+        t.translate(0.8 * width(), 0.8 * height());
+        painter.setTransform(t);
+        QString str; // = "Test Atest";
+        QTextStream(&str) << car->gearbox.get_gear() + 1;
+        misc::draw_centered_text(painter, fm, str, QPointF(0,0));
+        painter.setBrush(Qt::NoBrush);
+        //painter.drawEllipse(QPointF(0,0), 5, 5);
+        //painter.drawEllipse(QPointF(0,0), 10, 10);
+        painter.drawRect(QRectF(-20, -20, 40, 40));
+        font.setPointSize(12);
+        font.setBold(false);
+        painter.setFont(font);
+        fm = painter.fontMetrics();
+        misc::draw_centered_text(painter, fm, "Gear", QPointF(0, -30));
     }
     // draw the road
     painter.setPen(QPen(Qt::black, 1));

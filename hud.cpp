@@ -25,7 +25,7 @@ void Speedometer::draw(QPainter& painter, const QPointF pos, const qreal kmh)
 		painter.drawLine(pos + (radius - 10) * vec, pos + radius * vec);
 		QString str;
 		QTextStream(&str) << min_speed + i * speed_delta;
-        misc::draw_centered_text(painter, fm, str, pos + (radius - 19 - fabs(cos(angle))*0.4*fm.width(str)) * vec);
+        misc::draw_centered_text(painter, fm, str, pos + (radius - 19 - fabs(cos(angle))*0.4*fm.width(str)) * vec, 0.5);
 	}
 
 	// draw secondary ticks

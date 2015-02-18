@@ -13,7 +13,7 @@
 #define COOLDOWN_TIME_SPEEDING 10000 // how long "nothing" happens after a speeding 'flash'
 #define TOOSLOW_OBSERVER_ACCELERATION 0.1 // kmh per "track_path unit"
 #define TOOSLOW_OBSERVER_SLOWING_DOWN 0.05
-#define TOOSLOW_OBSERVER_COOLDOWN 8000 //how long nothing happens after getting "honked"
+#define TOOSLOW_OBSERVER_COOLDOWN 10000 //how long nothing happens after getting "honked"
 
 class SignObserverBase
 {
