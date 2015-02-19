@@ -8,7 +8,7 @@
 #include "track.h"
 #include "misc.h"
 
-#define LOG_VERSION "1.6"
+#define LOG_VERSION "1.7"
 #define LOG_VERSION_JSON "1.0"
 
 struct LogItem
@@ -25,6 +25,11 @@ struct LogItemJson : public LogItem
 {
     qreal speed; // kmh
     qreal position; // on the track_path
+    qreal rpm; // !!
+    qreal acceleration; // !! [m/s^2]
+    qreal consumption; // !! [L/s]
+    qreal rel_consumption; // !! [L/100km]
+    qreal rel_consumption_slow; // [L/100km] from the hud
     void write(QJsonObject& j) {
         j["throttle"] = throttle;
         j["braking"] = braking;
@@ -84,10 +89,23 @@ struct Log
     bool load(const QString filename) { return misc::loadObj(filename, *this); }
     bool save_json(const QString filename) const { return misc::saveJson(filename, *this); }
 
+    static QString condition_string(Condition cond) {
+        switch (cond) {
+            case VIS: return "VIS";
+            case SLP: return "SLP";
+            case CNT: return "CNT";
+            case NO_CONDITION: return "NO_CONDITION";
+        }
+        Q_ASSERT(false);
+        return "NO_CONDITION";
+    }
+
     void write(QJsonObject& j) const {
         Q_ASSERT(log_run_finished);
-        j["condition"] = sound_modus == 0 ? "VIS" : (sound_modus == 1 ? "SLP" : (sound_modus == 2 ? "CPB" : "UNDEFINED!"));
+        j["condition"] = sound_modus == 0 ? "VIS" : (sound_modus == 1 ? "SLP" : (sound_modus == 2 ? "CNT" : "UNDEFINED!"));
         j["log_version"] = LOG_VERSION_JSON;
+        j["elapsed_time"] = elapsed_time;
+        j["liters_used"] = liters_used;
         QJsonArray jitems;
         for (auto i : items_json) {
             QJsonObject ji;
@@ -106,7 +124,13 @@ struct Log
     qreal elapsed_time = 0;
     qreal liters_used = 0;
     int sound_modus = 0;
+    Condition condition = VIS; // this should be the same as sound_modus!
     qreal initial_angular_velocity = 0;
+
+    int vp_id = 1001;
+    int run = 1;
+    int global_run_counter = 0;
+
     QString version = LOG_VERSION;
     bool valid = true;
     LogEvent* next_log_event = nullptr;
@@ -133,11 +157,16 @@ inline QDataStream &operator>>(QDataStream &in, LogEvent &e) {
 }
 
 inline QDataStream &operator<<(QDataStream &out, const Log &log) {
-    out << log.version << *log.car << *log.track << log.items << log.events << log.elapsed_time << log.liters_used << log.sound_modus << log.initial_angular_velocity;
+    out << log.version << *log.car << *log.track << log.items << log.events << log.elapsed_time << log.liters_used
+        << log.sound_modus << log.initial_angular_velocity << (int) log.condition << log.vp_id << log.run << log.global_run_counter;
     return out;
 }
 inline QDataStream &operator>>(QDataStream &in, Log &log) {
-    in >> log.version >> *log.car >> *log.track >> log.items >> log.events >> log.elapsed_time >> log.liters_used >> log.sound_modus >> log.initial_angular_velocity;
+    int condition;
+    in >> log.version >> *log.car >> *log.track >> log.items >> log.events >> log.elapsed_time >> log.liters_used
+            >> log.sound_modus >> log.initial_angular_velocity >> condition >> log.vp_id >> log.run >> log.global_run_counter;
+    log.condition = (Condition) condition;
+    Q_ASSERT(condition == log.sound_modus);
     log.valid = (log.version == QString(LOG_VERSION));
     if (log.events.size() > 0)
         log.next_log_event = &log.events[0];

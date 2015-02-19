@@ -24,7 +24,7 @@ public:
     }
 
     // both torque & rpm must be relative! (0-1)
-    qreal get_rel_consumption(qreal const rpm, qreal const torque) {
+    qreal get_rel_consumption(qreal const rpm, qreal const torque) const {
         const QPointF x = transform.map(QPointF(rpm, torque));
         const qreal e = sqr(x.x() / ellipse.x()) + sqr(x.y() / ellipse.y()); // ellipse function
         //return log(e + 1) * 0.2 + 1; // mapping

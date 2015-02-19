@@ -176,7 +176,7 @@ protected:
     void trigger(Track::Sign * sign, const qreal) {
         Q_ASSERT(sign->traffic_light_state == Track::Sign::Red);
         sign->traffic_light_state = Track::Sign::Red_pending;
-        QtConcurrent::run(trigger_traffic_light, next_sign);
+        QtConcurrent::run(trigger_traffic_light, sign);
     }
 };
 

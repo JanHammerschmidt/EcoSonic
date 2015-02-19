@@ -271,6 +271,11 @@ bool QCarViz::tick() {
             (LogItem&) log_item_json = log_item;
             log_item_json.speed = get_kmh();
             log_item_json.position = current_pos;
+            log_item_json.rpm = car->engine.rpm();
+            log_item_json.acceleration = car->current_acceleration;
+            log_item_json.consumption = car->engine.get_consumption_L_s();
+            log_item_json.rel_consumption = consumption_monitor.l_100km_instantaneous(car->engine.get_consumption_L_s(), car->speed);
+            log_item_json.rel_consumption_slow = hud.l_100km;
         }
         replay_index++;
         time_delta.add_dt(dt);
@@ -320,6 +325,7 @@ bool QCarViz::tick() {
     }
     qreal t = time_elapsed();
 
+//#ifndef CAR_VIZ_FINAL_STUDY
     // sound modus (supercollider)
     {
         int sound_modus = -1;
@@ -330,6 +336,7 @@ bool QCarViz::tick() {
         if (sound_modus != -1)
             set_sound_modus(sound_modus);
     }
+//#endif // CAR_VIZ_FINAL_STUDY
     // control window
     if (keyboard_input.show_control_window() && (sound_modus == 2 || sound_modus == 3))
         osc->call("/show_controls");
@@ -419,6 +426,11 @@ bool QCarViz::tick() {
         car->log->elapsed_time = t;
         car->log->liters_used = consumption_monitor.liters_used;
         car->log->sound_modus = sound_modus;
+        car->log->vp_id = vp_id_->value();
+        car->log->run = run_->value();
+        car->log->condition = (Condition) this->current_condition_->currentIndex();
+        car->log->global_run_counter = global_run_counter;
+        global_run_counter += 1;
         car->save_log(program_start_time);
     }
     double l_100km;

@@ -238,6 +238,7 @@ public:
         stop();
         reset();
         set_condition(condition_order[0]);
+        global_run_counter = 1;
     }
 
     void set_sound_modus(int const sound_modus) {
@@ -482,6 +483,7 @@ protected:
     int sound_modus = 0;
     bool sound_enabled = false;
     QDateTime program_start_time;
+    int global_run_counter = 1;
     bool replay = false;
     int replay_index = 0;
     int replay_speed_mult = 1;

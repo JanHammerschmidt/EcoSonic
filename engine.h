@@ -20,8 +20,11 @@ struct ConsumptionMonitor
             ml_counter -= ml_per_tick * 0.001;
             osc->send_float("/consumption_tick", liters_per_100km_cont);
         }
-
     }
+    inline double l_100km_instantaneous(const double liter_s, const double speed) {
+        return liter_s / speed * 1000 * 100;
+    }
+
     // returns true if avg makes for > 1 sek
     // l_100km [L/100km], speed [m/s]
     inline bool get_l_100km(double& l_100km, const double speed) {
@@ -54,7 +57,10 @@ public:
 
     Engine(const qreal max_rpm, const qreal max_torque);
 
-    void reset() { set_rpm(2500); }
+    void reset() {
+        //set_rpm(2500);
+        set_rpm(700);
+    }
 
     // throttle (0..1)
     inline qreal update_torque(qreal throttle)
@@ -72,12 +78,12 @@ public:
     }
 
     // returns [kW]
-    inline qreal power_output() {
+    inline qreal power_output() const {
         return angular_velocity * torque / 1000;
     }
 
     // returns [g/h] (?)
-    inline qreal get_consumption() {
+    inline qreal get_consumption() const {
         qreal const power = power_output();
         qreal rel_consumption = consumption_map.get_rel_consumption(rel_rpm(), torque / max_torque);
         return rel_consumption * base_consumption * power;
