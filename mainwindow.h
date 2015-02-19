@@ -72,6 +72,11 @@ private slots:
 
     void on_reset_clicked();
 
+    void on_actionConvert_All_Logs_in_a_Directory_triggered();
+
+protected:
+    void convert_log(QString filename);
+
 private:
     Ui::MainWindow *ui;
     Car car;

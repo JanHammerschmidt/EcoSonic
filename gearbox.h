@@ -50,6 +50,7 @@ public:
     }
 
     void reset() {
+        clutch.disengage();
         gear = 0;
         emit gear_changed(0);
     }

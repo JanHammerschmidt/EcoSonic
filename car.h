@@ -24,6 +24,14 @@ public:
                 : drag_resistance_coefficient;
     }
 
+    void reset(bool const replay) {
+        if (!replay)
+            engine.reset();
+        gearbox.reset();
+        speed = 0;
+        throttle = 0;
+        braking = 0;
+    }
 
     void save_log(QDateTime& program_start_time);
 

@@ -148,11 +148,7 @@ void QCarViz::log_run()
 void QCarViz::reset() {
     current_pos = initial_pos;
     steering = 0;
-    car->gearbox.clutch.disengage();
-    if (!replay)
-        car->engine.reset();
-    car->gearbox.reset();
-    car->speed = 0;
+    car->reset(replay);
     consumption_monitor.reset();
     if (!replay)
         track_started = false;
@@ -244,7 +240,7 @@ void QCarViz::prepare_track() {
 bool QCarViz::tick() {
     //Q_ASSERT(started);
     if (!started) {
-        if (wingman_input.update_back_buttons()) {
+        if (wingman_input.valid() && wingman_input.update_back_buttons()) {
             if (wingman_input.left_right_click()) {
                 start_stop();
             }
@@ -259,6 +255,7 @@ bool QCarViz::tick() {
             qDebug() << "elapsed_time:" << time_elapsed();
             qDebug() << "deciliters_used:" << consumption_monitor.liters_used * 10;
             stop();
+            replay = false;
             return false;
         }
         LogItem& log_item = car->log->items[replay_index];
@@ -439,8 +436,9 @@ bool QCarViz::tick() {
             breaking_slider->setValue(car->braking * 100);
             changed = false;
         } else {
-            car->throttle = throttle_slider->value() / 100.;
-            car->braking = breaking_slider->value() / 100.;
+            // !! this is not so nice .. (the sliders totally get ignored)
+            //car->throttle = throttle_slider->value() / 100.;
+            //car->braking = breaking_slider->value() / 100.;
         }
         if (keyboard_input.connect()) {
             toggle_connect_to_eyetracker();

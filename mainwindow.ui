@@ -1233,6 +1233,7 @@ Condition</string>
     </property>
     <addaction name="actionOpen_Log"/>
     <addaction name="actionConvert_Log"/>
+    <addaction name="actionConvert_All_Logs_in_a_Directory"/>
    </widget>
    <addaction name="menuFile"/>
   </widget>
@@ -1250,6 +1251,14 @@ Condition</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+C</string>
+   </property>
+  </action>
+  <action name="actionConvert_All_Logs_in_a_Directory">
+   <property name="text">
+    <string>Convert All Logs in a Directory</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+C</string>
    </property>
   </action>
  </widget>

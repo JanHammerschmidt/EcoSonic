@@ -175,7 +175,7 @@ void MainWindow::on_tabWidget_currentChanged(int index)
 
 void MainWindow::on_actionOpen_Log_triggered()
 {
-    ui->car_viz->stop(true);
+    ui->car_viz->stop(); //true);
     QString filename = QFileDialog::getOpenFileName(this, "Open Log", QDir::homePath()+"/EcoSonic", "Log Files (*.log)");
     if (filename != "" && QFile(filename).exists()) {
         ui->car_viz->load_log(filename, true);
@@ -204,17 +204,10 @@ void MainWindow::on_hud_toggle_clicked()
 
 void MainWindow::on_actionConvert_Log_triggered()
 {
-    ui->car_viz->stop(true);
-    QString filename = QFileDialog::getOpenFileName(this, "Open Log", QDir::homePath()+"/EcoSonic", "Log Files (*.log)");
+    ui->car_viz->stop(); //true);
+    QString filename = QFileDialog::getOpenFileName(this, "Convert Log", QDir::homePath()+"/EcoSonic", "Log Files (*.log)");
     if (filename != "" && QFile(filename).exists()) {
-        ui->car_viz->load_log(filename, false);
-        ui->car_viz->log_run();
-        const int dot = filename.lastIndexOf('.');
-        if (dot != -1)
-            filename = filename.left(dot);
-        filename += ".json";
-        ui->car_viz->save_json(filename);
-        qDebug() << "saved";
+        convert_log(filename);
     } else {
         ui->car_viz->start();
     }
@@ -247,4 +240,34 @@ void MainWindow::on_current_condition_currentIndexChanged(int index)
 void MainWindow::on_reset_clicked()
 {
     ui->car_viz->reset();
+}
+
+void MainWindow::on_actionConvert_All_Logs_in_a_Directory_triggered()
+{
+    ui->car_viz->stop(); //true);
+    QString directory = QFileDialog::getExistingDirectory(this, "Convert all Logs in this directory", QDir::homePath()+"/EcoSonic");
+    QDir dir(directory);
+    if (directory != "" && dir.exists()) {
+        QStringList files = dir.entryList(QStringList("*.log"));
+        for (auto f : files) {
+            convert_log(dir.filePath(f));
+        }
+        qDebug() << "done converting directory" << dir.absolutePath();
+    } else {
+        ui->car_viz->start();
+    }
+
+}
+
+void MainWindow::convert_log(QString filename)
+{
+    qDebug() << "converting" << filename;
+    ui->car_viz->load_log(filename, false);
+    ui->car_viz->log_run();
+    const int dot = filename.lastIndexOf('.');
+    if (dot != -1)
+        filename = filename.left(dot);
+    filename += ".json";
+    ui->car_viz->save_json(filename);
+    qDebug() << filename << "saved";
 }
