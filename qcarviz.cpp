@@ -54,7 +54,7 @@ QCarViz::QCarViz(QWidget *parent)
     QObject::connect(&tick_timer, SIGNAL(timeout()), this, SLOT(tick()));
 }
 
-void QCarViz::init(Car* car, QPushButton* start_button, QCheckBox* eye_tracker_connected_checkbox, QSpinBox* vp_id, QComboBox* current_condition, QComboBox* next_condition,
+void QCarViz::init(Car* car, QPushButton* start_button, QCheckBox* eye_tracker_connected_checkbox, QSpinBox* vp_id, QComboBox* current_condition, QComboBox* next_condition, QCheckBox *intro_run,
                    QSpinBox *run, QSlider* throttle, QSlider* breaking, QSpinBox* gear, QMainWindow* main_window, OSCSender* osc, bool start)
 {
     this->car = car;
@@ -63,6 +63,7 @@ void QCarViz::init(Car* car, QPushButton* start_button, QCheckBox* eye_tracker_c
     vp_id_ = vp_id;
     current_condition_ = current_condition;
     next_condition_ = next_condition;
+    intro_run_ = intro_run;
     run_ = run;
     throttle_slider = throttle;
     breaking_slider = breaking;
@@ -174,7 +175,7 @@ void QCarViz::start() {
                 }
                 set_condition((Condition) next_condition);
                 run_->setValue(1);
-                QMessageBox::information(this, "EcoSonic", "New condition: " + current_condition_->currentText());
+                QMessageBox::information(this, "EcoSonic", "New condition: " + current_condition_->currentText() + "\n\nPlease complete the questionaire first.");
             } else {
                 run_->setValue(run + 1);
             }
@@ -431,7 +432,7 @@ bool QCarViz::tick() {
         car->log->condition = (Condition) this->current_condition_->currentIndex();
         car->log->global_run_counter = global_run_counter;
         global_run_counter += 1;
-        car->save_log(program_start_time);
+        car->save_log(intro_run_->checkState() == Qt::Checked, program_start_time);
     }
     double l_100km;
     if (consumption_monitor.get_l_100km(l_100km, car->speed)) {
@@ -481,6 +482,7 @@ void QCarViz::draw(QPainter& painter)
     const QPointF cur_p = track_path.pointAtPercent(current_percent);
     //printf("%.3f\n", current_alpha * 180 / M_PI);
 
+#ifndef CAR_VIZ_FINAL_STUDY
     //draw the current speed limit / current_pos / time elapsed
     QString number; number.sprintf("%04.1f", time_elapsed());
     painter.setFont(QFont{"Eurostile", 18, QFont::Bold});
@@ -488,9 +490,10 @@ void QCarViz::draw(QPainter& painter)
     if (track_started)
         painter.drawText(p, number);
     // /////
+#endif
 
     // draw remaining time
-    TimeDisplay::draw(painter, {10,30}, track.max_time, time_elapsed(), track_started);
+    TimeDisplay::draw(painter, {10,30}, track.max_time, time_elapsed(), track_started, false);
 
     const bool hud_external = hud_window.get() != nullptr;
 
@@ -512,7 +515,7 @@ void QCarViz::draw(QPainter& painter)
         QFontMetrics fm = painter.fontMetrics();
         //fm.xHeight() // !! ??
         t.reset();
-        t.translate(0.8 * width(), 0.8 * height());
+        t.translate(0.5 * width() + 300, 0.8 * height());
         painter.setTransform(t);
         QString str; // = "Test Atest";
         QTextStream(&str) << car->gearbox.get_gear() + 1;

@@ -74,6 +74,8 @@ private slots:
 
     void on_actionConvert_All_Logs_in_a_Directory_triggered();
 
+    void on_intro_run_stateChanged(int checked);
+
 protected:
     void convert_log(QString filename);
 

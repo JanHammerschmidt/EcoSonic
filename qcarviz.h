@@ -205,14 +205,15 @@ public:
         }
     }
 
-    void init(Car* car, QPushButton* start_button, QCheckBox* eye_tracker_connected_checkbox, QSpinBox *vp_id, QComboBox* current_condition, QComboBox* next_condition,
-              QSpinBox* run, QSlider* throttle, QSlider* breaking, QSpinBox* gear, QMainWindow* main_window, OSCSender* osc, bool start = true);
+    void init(Car* car, QPushButton* start_button, QCheckBox* eye_tracker_connected_checkbox, QSpinBox *vp_id, QComboBox* current_condition, QComboBox* next_condition, QCheckBox* intro_run,
+              QSpinBox* run, QSlider* throttle, QSlider* breaking, QSpinBox* gear, QMainWindow* main_window, OSCSender* osc, bool start = false);
 
     void copy_from_track_editor(QTrackEditor* track_editor);
 
     void set_condition(Condition cond) {
         int sound_modus = (int) cond;
-        set_sound_modus(sound_modus);
+        if (intro_run_->checkState() != Qt::Checked)
+            set_sound_modus(sound_modus);
         current_condition_->setCurrentIndex(sound_modus);
 
         // always set next condition as well
@@ -442,13 +443,13 @@ protected:
         tree_types.last().add_speedy_image(path + "4", 70);
         tree_types.last().add_speedy_image(path + "5", 100);
     }
-
+public:
     void update_track_path(const int height) {
         QPainterPath path;
         track.get_path(path, height);
         track_path.swap(path);
     }
-
+protected:
     virtual void resizeEvent(QResizeEvent *e) {
         update_track_path(e->size().height());
     }
@@ -503,6 +504,7 @@ protected:
     QComboBox* next_condition_;
     QSpinBox* run_;
     bool log_run_ = false;
+    QCheckBox* intro_run_ = nullptr;
 };
 
 

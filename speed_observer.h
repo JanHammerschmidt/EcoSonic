@@ -233,7 +233,8 @@ struct TooSlowObserver {
         const qreal track_length = car_viz.get_track_path().length() * track_mult;
         min_speed_.resize((int) track_length + 5);
         min_speed_.fill(0);
-        const QVector<Track::Sign>& signs = track.signs;
+        QVector<Track::Sign> signs = track.signs;
+        signs.insert(signs.begin(), Track::Sign(Track::Sign::Speed130, 10));
 
         // get all speed signs
         QVector<const Track::Sign*> speed_signs;
@@ -279,6 +280,7 @@ struct TooSlowObserver {
                 }
             }
         }
+        signs.remove(0);
         for (int j = 50 * track_mult; j >= 0; j--)
             set_min_speed(j, -1);
         insert_stop_sign(40, track_length);
@@ -313,7 +315,7 @@ struct TooSlowObserver {
         misc::saveJson("/Users/jhammers/test.json", s);
     }
     void insert_stop_sign(const int pos, const int track_length) {
-        const int left = boost::algorithm::clamp((pos - 30) * track_mult, 0, track_length);
+        const int left = boost::algorithm::clamp((pos - 60) * track_mult, 0, track_length);
         const int right = boost::algorithm::clamp((pos + 5) * track_mult, 0, track_length);
         for (int j = left+1; j < right; j++)
             set_min_speed(j, -1);

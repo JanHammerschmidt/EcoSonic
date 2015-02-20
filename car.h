@@ -33,7 +33,7 @@ public:
         braking = 0;
     }
 
-    void save_log(QDateTime& program_start_time);
+    void save_log(const bool intro_run, QDateTime& program_start_time);
 
     // throttle: (0..1), alpha: up/downhill [rad]
     // returns acceleration [m/s^2]

@@ -4,7 +4,7 @@
 #include "logging.h"
 #include "qcarviz.h"
 
-void Car::save_log(QDateTime& program_start_time) {
+void Car::save_log(const bool intro_run, QDateTime& program_start_time) {
     Q_UNUSED(program_start_time);
     Q_ASSERT(log != nullptr);
     //log->save(QDir::homePath()+"/EcoSonic/"+program_start_time.toString("yyyy-MM-dd_hh-mm")+"/"+QDateTime::currentDateTime().toString("mm-ss")+".log");
@@ -12,9 +12,13 @@ void Car::save_log(QDateTime& program_start_time) {
     QTextStream f(&filename);
     f << QDir::homePath()+"/EcoSonic/";
     f << "VP" << log->vp_id << "/" << log->vp_id << "_";
-    f << log->global_run_counter << "_";
-    f << Log::condition_string(log->condition) << "_";
-    f << log->run << "_";
+    if (intro_run)
+        f << "intro-run" << "_";
+    else {
+        f << log->global_run_counter << "_";
+        f << Log::condition_string(log->condition) << "_";
+        f << log->run << "_";
+    }
     f << QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss");
     f << ".log";
     qDebug() << filename;

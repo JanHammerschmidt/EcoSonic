@@ -78,7 +78,7 @@ MainWindow::MainWindow(QWidget *parent)
                            ui->track_tl_distance, ui->lbl_min_time, ui->lbl_max_time, ui->lbl_distance,
                            ui->steer_intensity, ui->steer_time, ui->steer_fade_in, ui->steer_fade_out,
                            ui->lbl_steer_intensity, ui->lbl_steer_time, ui->lbl_steer_fade_in, ui->lbl_steer_fade_out);
-    ui->car_viz->init(&car, ui->start, ui->eyetracker, ui->vp_id, ui->current_condition, ui->next_condition,
+    ui->car_viz->init(&car, ui->start, ui->eyetracker, ui->vp_id, ui->current_condition, ui->next_condition, ui->intro_run,
                       ui->run, ui->throttle, ui->breaking, ui->gear, this, &osc);
     QObject::connect(ui->car_viz, SIGNAL(slow_tick(qreal,qreal, ConsumptionMonitor&)),
                      this, SLOT(update_plots(qreal,qreal,ConsumptionMonitor&)));
@@ -270,4 +270,21 @@ void MainWindow::convert_log(QString filename)
     filename += ".json";
     ui->car_viz->save_json(filename);
     qDebug() << filename << "saved";
+}
+
+void MainWindow::on_intro_run_stateChanged(int checked)
+{
+    qDebug() << "check state:" << (ui->intro_run->checkState() == Qt::Checked);
+    if (!checked) {
+        ui->car_viz->track.load();
+        ui->car_viz->update_track_path(ui->car_viz->height());
+        ui->car_viz->reset();
+        ui->car_viz->set_condition_order(ui->vp_id->value() % 1000);
+    } else {
+        ui->car_viz->stop();
+        ui->car_viz->track.load(QDir::homePath()+"/EcoSonic/intro_track.bin");
+        ui->car_viz->update_track_path(ui->car_viz->height());
+        ui->car_viz->reset();
+        ui->car_viz->set_sound_modus(0);
+    }
 }

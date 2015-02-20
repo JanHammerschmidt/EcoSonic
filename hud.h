@@ -59,17 +59,17 @@ struct ConsumptionDisplay {
 
 
 struct TimeDisplay {
-    static void draw(QPainter& painter, QPointF pos, int max_time, qreal time_elapsed, bool track_started, bool draw_remaining = true)
+    static void draw(QPainter& painter, QPointF pos, int max_time, qreal time_elapsed, bool track_started, bool draw_remaining)
     {
-        Q_ASSERT(draw_remaining == true);
-        if (track_started || draw_remaining) {
-            QTime t(0,0);
+        QTime t(0,0);
+        if (draw_remaining)
             t = t.addSecs(std::max(0.0, track_started ? max_time - time_elapsed : max_time));
-            QString ts = t.toString("m:ss");
-            painter.setFont(QFont{"Eurostile", 18, QFont::Bold});
-            painter.setPen(QPen(Qt::black));
-            painter.drawText(pos, "Remaining Time: " + ts);
-        }
+        else if (track_started)
+            t = t.addSecs(time_elapsed);
+        QString ts = t.toString("m:ss");
+        painter.setFont(QFont{"Eurostile", 18, QFont::Bold});
+        painter.setPen(QPen(Qt::black));
+        painter.drawText(pos, (draw_remaining ? "Remaining Time: " : "Elapsed Time: ") + ts);
     }
 };
 

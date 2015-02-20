@@ -1058,6 +1058,13 @@ Condition</string>
        </widget>
       </item>
       <item>
+       <widget class="QCheckBox" name="intro_run">
+        <property name="text">
+         <string>Intro-Run</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <spacer name="verticalSpacer_4">
         <property name="orientation">
          <enum>Qt::Vertical</enum>
