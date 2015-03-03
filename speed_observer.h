@@ -50,7 +50,7 @@ protected:
     virtual bool tick_current_sign(const qreal /*t*/, const qreal /*dt*/) { return true; } // return true when finished
 
 public:
-    inline void reset() {
+    virtual void reset() {
         next_sign = nullptr;
         current_sign = nullptr;
         find_next_sign();
@@ -150,6 +150,10 @@ class TrafficLightObserver : public SignObserverBase
 protected:
     TrafficLightObserver(QCarViz& carViz) : SignObserverBase(carViz, true) { }
     void init() override { types.push_back(Track::Sign::TrafficLight); }
+    void reset() override {
+        SignObserverBase::reset();
+
+    }
     static void trigger_traffic_light(Track::Sign* traffic_light) {
         std::pair<qreal,qreal>& time_range = traffic_light->traffic_light_info.time_range;
         std::uniform_int_distribution<int> time(time_range.first,time_range.second);
@@ -163,7 +167,7 @@ protected:
             qDebug() << "TrafficLight: okay";
             return true;
         }
-        if (carViz.get_current_pos() - current_sign->at_length > 10) {
+        if (carViz.get_current_pos() - current_sign->at_length > 0) {
             qDebug() << "TrafficLight: flash!";
             carViz.log_traffic_violation(TrafficViolation::TrafficLight);
             return true;
@@ -174,6 +178,8 @@ protected:
         return sign->traffic_light_info.trigger_distance;
     }
     void trigger(Track::Sign * sign, const qreal) {
+        if (carViz.is_log_run())
+            return;
         Q_ASSERT(sign->traffic_light_state == Track::Sign::Red);
         sign->traffic_light_state = Track::Sign::Red_pending;
         QtConcurrent::run(trigger_traffic_light, sign);
@@ -208,7 +214,6 @@ protected:
     }
 public:
     void trigger(Track::Sign *sign, qreal t) override {
-        current_sign = next_sign;
         info = &sign->steering_info;
         t0 = t;
         stage = 0;
@@ -315,8 +320,8 @@ struct TooSlowObserver {
         misc::saveJson("/Users/jhammers/test.json", s);
     }
     void insert_stop_sign(const int pos, const int track_length) {
-        const int left = boost::algorithm::clamp((pos - 60) * track_mult, 0, track_length);
-        const int right = boost::algorithm::clamp((pos + 5) * track_mult, 0, track_length);
+        const int left = boost::algorithm::clamp((pos - 100) * track_mult, 0, track_length);
+        const int right = boost::algorithm::clamp((pos + 25) * track_mult, 0, track_length);
         for (int j = left+1; j < right; j++)
             set_min_speed(j, -1);
         qreal inc = TOOSLOW_OBSERVER_SLOWING_DOWN / track_mult;

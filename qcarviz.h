@@ -356,6 +356,27 @@ public:
 
 protected:
 
+    void show_end_of_run_messagebox() {
+        QString text = "End of track!\n\n";
+        if (intro_run_->checkState() != Qt::Checked) {
+            QTextStream(&text) << "You have consumed " << qSetRealNumberPrecision(2) << consumption_monitor.liters_used * 10 << " dl for this run.\n\n";
+        }
+        QTextStream(&text) << "Press both upper buttons on the wheel to continue!";
+        QMessageBox* msgBox = new QMessageBox(QMessageBox::Information, "EcoSonic", text, QMessageBox::Ok /*, this*/);
+        msgBox->setAttribute( Qt::WA_DeleteOnClose ); //makes sure the msgbox is deleted automatically when closed
+        //msgBox->setModal(true);
+        end_of_run_messagebox_ = msgBox;
+        msgBox->open(this, SLOT(end_of_run_messagebox_closed()));
+    }
+    QMessageBox* end_of_run_messagebox_ = nullptr;
+protected slots:
+    void end_of_run_messagebox_closed() {
+        qDebug() << "end_of_run_messagebox_ = nullptr";
+        end_of_run_messagebox_ = nullptr;
+    }
+
+protected:
+
     void fill_trees() {
         trees.clear();
         const qreal first_distance = 40; // distance from starting position of the car
@@ -449,6 +470,7 @@ public:
         track.get_path(path, height);
         track_path.swap(path);
     }
+    bool is_log_run() const { return log_run_; }
 protected:
     virtual void resizeEvent(QResizeEvent *e) {
         update_track_path(e->size().height());

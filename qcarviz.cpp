@@ -52,6 +52,7 @@ QCarViz::QCarViz(QWidget *parent)
     fill_trees();
     tick_timer.setInterval(30); // minimum simulation interval
     QObject::connect(&tick_timer, SIGNAL(timeout()), this, SLOT(tick()));
+    tick_timer.start();
 }
 
 void QCarViz::init(Car* car, QPushButton* start_button, QCheckBox* eye_tracker_connected_checkbox, QSpinBox* vp_id, QComboBox* current_condition, QComboBox* next_condition, QCheckBox *intro_run,
@@ -163,7 +164,11 @@ void QCarViz::reset() {
     update();
 }
 
-void QCarViz::start() {
+void QCarViz::start()
+{
+    if (end_of_run_messagebox_ != nullptr)
+        end_of_run_messagebox_->close();
+
     if (current_pos >= track_path.length()) {
         if (!replay) {
             const int run = run_->value();
@@ -183,7 +188,6 @@ void QCarViz::start() {
         reset();
     }
     time_delta.start();
-    tick_timer.start();
     started = true;
     osc->call("/startEngine");
     toggle_fedi(true);
@@ -433,6 +437,7 @@ bool QCarViz::tick() {
         car->log->global_run_counter = global_run_counter;
         global_run_counter += 1;
         car->save_log(intro_run_->checkState() == Qt::Checked, program_start_time);
+        show_end_of_run_messagebox();
     }
     double l_100km;
     if (consumption_monitor.get_l_100km(l_100km, car->speed)) {
