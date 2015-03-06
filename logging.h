@@ -64,11 +64,21 @@ struct LogEvent {
     }
 };
 
+struct Fedi_volume_item {
+    struct osc_item {
+        QString name;
+        double value;
+    };
+    QVector<osc_item> osc_items;
+    qreal dt;
+};
+
 struct Log
 {
     Log(Car* car, QCarViz* car_viz, Track* track) : car(car), car_viz(car_viz), track(track) {}
 
     void add_item(qreal throttle, qreal braking, int gear, qreal dt) {
+        //qDebug() << "eye tracking: " << car_viz->get_eye_tracker_point();
         items.append({ throttle, braking, gear, car_viz->get_eye_tracker_point(), car_viz->get_user_steering(), dt });
     }
     void add_event(const LogEvent::Type type) {
@@ -166,6 +176,8 @@ inline QDataStream &operator>>(QDataStream &in, Log &log) {
     in >> log.version >> *log.car >> *log.track >> log.items >> log.events >> log.elapsed_time >> log.liters_used
             >> log.sound_modus >> log.initial_angular_velocity >> condition >> log.vp_id >> log.run >> log.global_run_counter;
     log.condition = (Condition) condition;
+    qDebug() << "log.condition: " << log.condition;
+    qDebug() << "log.sound_modus: " << log.sound_modus;
     Q_ASSERT(condition == log.sound_modus);
     log.valid = (log.version == QString(LOG_VERSION));
     if (log.events.size() > 0)

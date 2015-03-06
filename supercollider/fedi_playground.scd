@@ -52,6 +52,7 @@ t = {~bus_pitch_freq.kr.poll(1)}.play
 };
 OSCdef(\msg_vol_up, {|m| ~fedi_stream_vol_add.value(0.2)}, '/vol_up');
 OSCdef(\msg_vol_down, {|m| ~fedi_stream_vol_add.value(-0.2)}, '/vol_down');
+OSCdef(\msg_fedi_vol_set, {|m| ~fedi_stream.set(\db, m[1]); ("vol:"+m[1]).postln;}, '/fedi_vol_set');
 
 // misc functions
 ~free_synth = {|s| if(s !== nil, {s.free}); nil};
@@ -350,3 +351,8 @@ OSCdef(\msg_L_100km, {|m| // range [0-40?] // this is optional!
 // 	});
 // }
 //)
+s.recChannels = 4
+s.prepareForRecord
+s.record
+s.stopRecording
+

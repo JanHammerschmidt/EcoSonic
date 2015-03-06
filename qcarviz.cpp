@@ -112,11 +112,15 @@ void QCarViz::show_traffic_violation(const TrafficViolation violation) {
     flash_timer.start();
     QString hint;
     switch (violation) {
-        //"Sie sind zu schnell gefahren!";
-        case Speeding: hint =  hint = "You were driving too fast!"; break;
-        // "Sie haben das Stopschild überfahren!";
+#ifdef GERMAN
+    case Speeding: hint = "Sie sind zu schnell gefahren!"; break;
+    case StopSign: hint = "Sie haben das Stopschild überfahren!"; break;
+    case TrafficLight: hint = "Sie haben die rote Ampel überfahren!"; break;
+#else
+        case Speeding: hint = "You were driving too fast!"; break;
         case StopSign: hint = "You didn't stop for the stop sign!"; break;
         case TrafficLight: hint = "You didn't stop for the red traffic light!"; break;
+#endif
     }
     text_hint.showText(hint);
 }
@@ -175,12 +179,21 @@ void QCarViz::start()
             if (run >= CAR_VIZ_MAX_RUNS) {
                 const int next_condition = next_condition_->currentIndex();
                 if (next_condition >= (int) NO_CONDITION) {
+#ifdef GERMAN
+                    QMessageBox::information(this, "EcoSonic", "Dies war die letzte Versuchsbedingung und das Ende des Simulationsteils.\n\nBitte füllen Sie noch den Fragebogen zuende aus!");
+#else
                     QMessageBox::information(this, "EcoSonic", "This was the last condition.\n\nEnd of Trial!");
+#endif
                     return;
                 }
+                const Condition last_condition = (Condition) current_condition_->currentIndex();
                 set_condition((Condition) next_condition);
                 run_->setValue(1);
+#ifdef GERMAN
+                QMessageBox::information(this, "EcoSonic", "Neue Versuchsbedingung (" + current_condition_->currentText() + ")\n\nBitte füllen Sie zunächst den Fragebogen zur aktuellen Bedingung (" + Log::condition_string(last_condition) + ") aus.");
+#else
                 QMessageBox::information(this, "EcoSonic", "New condition: " + current_condition_->currentText() + "\n\nPlease complete the questionaire first.");
+#endif
             } else {
                 run_->setValue(run + 1);
             }
@@ -195,6 +208,11 @@ void QCarViz::start()
     vp_id_->setReadOnly(true);
     current_condition_->setEnabled(false);
     update();
+    QTimer::singleShot(200, [&]{update();});
+    QTimer::singleShot(400, [&]{update();});
+    QTimer::singleShot(800, [&]{update();});
+    QTimer::singleShot(1200, [&]{update();});
+    QTimer::singleShot(1600, [&]{update();});
 }
 
 bool QCarViz::load_log(const QString filename, const bool start) {
@@ -269,6 +287,7 @@ bool QCarViz::tick() {
         car->gearbox.set_gear(log_item.gear);
         car->throttle = log_item.throttle;
         eye_tracker_point = log_item.eye_tracker_point;
+        //qDebug() << eye_tracker_point;
         user_steering = log_item.steering;
         changed = true;
         if (log_run_) {
@@ -293,8 +312,8 @@ bool QCarViz::tick() {
         if (!time_delta.get_time_delta(dt))
             return false;
 
-        if (keyboard_input.pitch_toggle())
-            text_hint.showText("You were driving too fast!");
+//        if (keyboard_input.pitch_toggle())
+//            text_hint.showText("You were driving too fast!");
         // keyboard input
         if (keyboard_input.update()) {
             car->throttle = keyboard_input.throttle();
@@ -348,11 +367,19 @@ bool QCarViz::tick() {
     // toggle pitch control (for grains)
     if (keyboard_input.pitch_toggle() && sound_modus == 3)
         osc->call("/grain_toggle_pitch");
+#ifndef CAR_VIZ_FINAL_STUDY
     // volume control
-    if (keyboard_input.vol_up())
-        osc->call("/vol_up");
-    else if (keyboard_input.vol_down())
-        osc->call("/vol_down");
+    if (keyboard_input.vol_up()) {
+        set_fedi_volume(fedi_volume_ + 0.2);
+        //osc->call("/vol_up");
+    } else if (keyboard_input.vol_down()) {
+        set_fedi_volume(fedi_volume_ - 0.2);
+        //osc->call("/vol_down");
+    }
+    // hack to show fedi volume window
+    if (keyboard_input.toggle_clutch())
+        show_fedi_volume_window();
+#endif
     if (keyboard_input.toggle_show_eye_tracking_point())
         show_eye_tracker_point = !show_eye_tracker_point;
 
@@ -463,8 +490,10 @@ bool QCarViz::tick() {
         }
         //speedObserver->tick();
         if (!replay) {
-            if (t - t_last_eye_tracking_update > 1)
+            if (t - t_last_eye_tracking_update > 1) {
+                //qDebug() << "!!eye tracking point reset!";
                 ::new(&eye_tracker_point) QPointF();
+            }
         }
         emit slow_tick(elapsed - last_elapsed, elapsed, consumption_monitor);
         last_elapsed = elapsed;
@@ -546,6 +575,10 @@ void QCarViz::draw(QPainter& painter)
     painter.setTransform(t);
     painter.drawPath(track_path);
 
+    // draw the trees (more in the background)
+    if (get_kmh() < 10)
+        draw_trees(painter, t0, car_x_pos, cur_p);
+
     // draw the signs
     for (int i = 0; i < track.signs.size(); i++) {
         track.signs[i].draw(painter, track_path);
@@ -564,18 +597,8 @@ void QCarViz::draw(QPainter& painter)
     painter.drawImage(QRectF(0,0, car_width, car_height), car_img);
 
     // draw the trees in the foreground
-    t = t0;
-    t.translate(car_x_pos - cur_p.x(),0);
-    painter.setTransform(t);
-
-    const qreal track_bottom = track_path.boundingRect().bottom();
-    for (Tree tree : trees) {
-        const qreal tree_x = tree.track_x(cur_p.x());
-        if (tree_x > size().width() + cur_p.x() + 200)
-            continue;
-        QPointF tree_pos(tree_x, track_bottom);
-        tree_types[tree.type].draw_scaled(painter, tree_pos, Gearbox::speed2kmh(car->speed), tree.scale);
-    }
+    if (get_kmh() >= 10)
+        draw_trees(painter, t0, car_x_pos, cur_p);
 
     // draw an arrow
     //printf("%s ", show_arrow == Arrow::None ? "None" : (show_arrow == Arrow::Left ? "Left" : "Right"));

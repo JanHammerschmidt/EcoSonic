@@ -19,8 +19,9 @@ LIBS += -framework CoreFoundation
 LIBS += -L/Users/jhammers/boost_1_57_0/stage/lib -lboost_thread -lboost_system
 LIBS += -L$$PWD/lib/quazip/release -lquazip -lz
 
-# DEFINES += CAR_VIZ_FINAL_STUDY
-DEFINES += CAR_VIZ_MAX_RUNS=5
+DEFINES += CAR_VIZ_FINAL_STUDY
+DEFINES += CAR_VIZ_MAX_RUNS=4
+DEFINES += GERMAN
 
 DEPENDPATH += . \
     ./include
@@ -52,7 +53,8 @@ SOURCES += main.cpp\
     car.cpp \
     hudwindow.cpp \
     qhudwidget.cpp \
-    hud.cpp
+    hud.cpp \
+    fedi_volume.cpp
 
 HEADERS  += mainwindow.h \
     engine.h \
@@ -88,7 +90,9 @@ HEADERS  += mainwindow.h \
     wingman_input.h \
     hudwindow.h \
     qhudwidget.h \
-    stdafx.h
+    stdafx.h \
+    fedi_volume.h
 
 FORMS    += mainwindow.ui \
-    hudwindow.ui
+    hudwindow.ui \
+    fedi_volume.ui

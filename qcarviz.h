@@ -29,6 +29,7 @@
 #include "track.h"
 #include "car.h"
 #include "hudwindow.h"
+#include "fedi_volume.h"
 
 #include <QMessageBox>
 #include <QLabel>
@@ -120,7 +121,7 @@ public:
 
         qDebug() << "connecting to EyeTracker-Server...";
         connected_checkbox_->setCheckState(Qt::PartiallyChecked);
-       //socket->connectToHost("127.0.0.1", 7767);
+        //socket->connectToHost("127.0.0.1", 7767);
         socket->connectToHost("192.168.0.10", 7767);
         if (!socket->waitForConnected(2000)) {
             qDebug() << "connecting failed!";
@@ -332,8 +333,11 @@ public:
     void show_traffic_violation(const TrafficViolation violation);
     void show_too_slow() {
         osc->call("/honk");
+#ifdef GERMAN
+        text_hint.showText("Sie fahren aktuell etwas langsam..");
+#else
         text_hint.showText("You are driving a little too slow..");
-        //text_hint.showText("Sie fahren aktuell etwas langsam..");
+#endif
     }
 
     QPointF& get_eye_tracker_point() { return eye_tracker_point; }
@@ -357,11 +361,24 @@ public:
 protected:
 
     void show_end_of_run_messagebox() {
+#ifdef GERMAN
+        QString text = "Ende dieser Strecke\n\n";
+#else
         QString text = "End of track!\n\n";
+#endif
+
         if (intro_run_->checkState() != Qt::Checked) {
+#ifdef GERMAN
+            QTextStream(&text) << "Sie haben " << qSetRealNumberPrecision(2) << consumption_monitor.liters_used * 10 << tr(" dl dafür gebraucht.\n\n");
+#else
             QTextStream(&text) << "You have consumed " << qSetRealNumberPrecision(2) << consumption_monitor.liters_used * 10 << " dl for this run.\n\n";
+#endif
         }
+#ifdef GERMAN
+        QTextStream(&text) << tr("Bitte drücken Sie die beiden oberen Knöpfe am Lenkrad um fortzufahren!");
+#else
         QTextStream(&text) << "Press both upper buttons on the wheel to continue!";
+#endif
         QMessageBox* msgBox = new QMessageBox(QMessageBox::Information, "EcoSonic", text, QMessageBox::Ok /*, this*/);
         msgBox->setAttribute( Qt::WA_DeleteOnClose ); //makes sure the msgbox is deleted automatically when closed
         //msgBox->setModal(true);
@@ -369,11 +386,29 @@ protected:
         msgBox->open(this, SLOT(end_of_run_messagebox_closed()));
     }
     QMessageBox* end_of_run_messagebox_ = nullptr;
+
+    void show_fedi_volume_intro_messagebox() {
+#ifdef GERMAN
+        QMessageBox* msgBox = new QMessageBox(QMessageBox::Information, "EcoSonic", "Bitte passen Sie die Sonifikation von der Lautsärke her so an, dass es für Sie angenehm ist!");
+#else
+        QMessageBox* msgBox = new QMessageBox(QMessageBox::Information, "EcoSonic", "Please adjust the volume of the sonification to your liking!");
+#endif
+        msgBox->setAttribute( Qt::WA_DeleteOnClose ); //makes sure the msgbox is deleted automatically when closed
+        fedi_volume_intro_messagebox_ = msgBox;
+        msgBox->open(this, SLOT(fedi_volume_intro_messagebox_closed()));
+    }
+    QMessageBox* fedi_volume_intro_messagebox_ = nullptr;
+
 protected slots:
     void end_of_run_messagebox_closed() {
         qDebug() << "end_of_run_messagebox_ = nullptr";
         end_of_run_messagebox_ = nullptr;
     }
+    void fedi_volume_intro_messagebox_closed() {
+        qDebug() << "fedi_volume_intro_messagebox_ = nullptr";
+        fedi_volume_intro_messagebox_ = nullptr;
+    }
+
 
 protected:
 
@@ -398,6 +433,34 @@ public:
     Log* log() { return car->log.get(); }
     bool is_replaying() { return replay; }
 protected:
+
+    void show_fedi_volume_window()
+    {
+        FediVolume& hw = *(new FediVolume());
+        QDesktopWidget d;
+        if (d.screenCount() == 2) {
+            QRect r1 = d.availableGeometry(0);
+            hw.move(r1.center() - QPoint(hw.width() / 2, 0));
+        }
+        hw.show();
+        hw.init(this);
+        hw.start();
+    }
+
+    void draw_trees(QPainter& painter, const QTransform& t0, const qreal car_x_pos, const QPointF& cur_p) {
+        QTransform t = t0;
+        t.translate(car_x_pos - cur_p.x(),0);
+        painter.setTransform(t);
+
+        const qreal track_bottom = track_path.boundingRect().bottom();
+        for (Tree tree : trees) {
+            const qreal tree_x = tree.track_x(cur_p.x());
+            if (tree_x > size().width() + cur_p.x() + 200)
+                continue;
+            QPointF tree_pos(tree_x, track_bottom);
+            tree_types[tree.type].draw_scaled(painter, tree_pos, Gearbox::speed2kmh(car->speed), tree.scale);
+        }
+    }
 
     void save_svg() {
         QSvgGenerator generator;
@@ -435,7 +498,13 @@ public:
 protected:
     void draw(QPainter& painter);
 
+    void set_fedi_volume(const qreal fedi_volume) {
+        fedi_volume_ = fedi_volume;
+        osc->send_float("/fedi_vol_set", fedi_volume);
+    }
+
     virtual void paintEvent(QPaintEvent *) {
+        //qDebug() << "paintEvent " << started;
 //        static misc::FPSTimer fps("paint:");
 //        fps.addFrame();
         if (started) {
@@ -444,6 +513,7 @@ protected:
                     if (!tick())
                         break;
             } else
+
                 tick();
         }
 
@@ -527,6 +597,8 @@ protected:
     QSpinBox* run_;
     bool log_run_ = false;
     QCheckBox* intro_run_ = nullptr;
+    qreal fedi_volume_ = 0.0;
+    bool fedi_volume_adjustment_in_progress = false;
 };
 
 

@@ -23,9 +23,10 @@ protected slots:
         pauseAccepting();
         if (socket != nullptr) {
             qDebug() << "WARNING: existing socket found!";
-            socket->deleteLater();
-            socket->abort();
-            socket->close();
+            qDebug() << "..ignoring!";
+//            socket->abort();
+//            socket->close();
+//            socket->deleteLater();
         }
         socket = nextPendingConnection();
         connect(socket, &QTcpSocket::disconnected, this, &TrackerServer::disconnect);
