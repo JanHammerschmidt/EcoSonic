@@ -43,7 +43,8 @@ bool saveJson(const QString filename, const T& obj, bool compressed = true) {
     file.write(doc.toJson());
     file.close();
     if (compressed) {
-        JlCompress::compressFile(filename+".zip", filename);
+        QString save_to = filename.endsWith(".zip") ? filename : filename + ".zip";
+        JlCompress::compressFile(save_to, filename);
         file.remove();
     }
     return true;

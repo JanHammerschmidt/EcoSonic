@@ -192,6 +192,9 @@ int main(int argc, char *argv[])
 
     QApplication a(argc, argv);
 
+
+
+
 //    QDesktopWidget d;
 //    int c = d.screenCount();
 //    if (c == 2) {

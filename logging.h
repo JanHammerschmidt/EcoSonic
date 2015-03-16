@@ -8,7 +8,7 @@
 #include "track.h"
 #include "misc.h"
 
-#define LOG_VERSION "1.7"
+#define LOG_VERSION "1.8"
 #define LOG_VERSION_JSON "1.0"
 
 struct LogItem
@@ -97,7 +97,7 @@ struct Log
 
     bool save(const QString filename) const { return misc::saveObj(filename, *this); }
     bool load(const QString filename) { return misc::loadObj(filename, *this); }
-    bool save_json(const QString filename) const { return misc::saveJson(filename, *this); }
+    bool save_json(const QString filename) const { return misc::saveJson(filename, *this, true); }
 
     static QString condition_string(Condition cond) {
         switch (cond) {
@@ -112,8 +112,9 @@ struct Log
 
     void write(QJsonObject& j) const {
         Q_ASSERT(log_run_finished);
-        j["condition"] = sound_modus == 0 ? "VIS" : (sound_modus == 1 ? "SLP" : (sound_modus == 2 ? "CNT" : "UNDEFINED!"));
         j["log_version"] = LOG_VERSION_JSON;
+        j["condition"] = sound_modus == 0 ? "VIS" : (sound_modus == 1 ? "SLP" : (sound_modus == 2 ? "CNT" : "UNDEFINED!"));
+        j["global_run_counter"] = global_run_counter;
         j["elapsed_time"] = elapsed_time;
         j["liters_used"] = liters_used;
         QJsonArray jitems;
@@ -123,6 +124,7 @@ struct Log
             jitems.append(ji);
         }
         j["items"] = jitems;
+
     }
 
     Car* car;
@@ -136,6 +138,8 @@ struct Log
     int sound_modus = 0;
     Condition condition = VIS; // this should be the same as sound_modus!
     qreal initial_angular_velocity = 0;
+    QSize window_size;
+    bool has_window_size = false;
 
     int vp_id = 1001;
     int run = 1;
@@ -167,19 +171,26 @@ inline QDataStream &operator>>(QDataStream &in, LogEvent &e) {
 }
 
 inline QDataStream &operator<<(QDataStream &out, const Log &log) {
-    out << log.version << *log.car << *log.track << log.items << log.events << log.elapsed_time << log.liters_used
-        << log.sound_modus << log.initial_angular_velocity << (int) log.condition << log.vp_id << log.run << log.global_run_counter;
+    out << QString(LOG_VERSION) << *log.car << *log.track << log.items << log.events << log.elapsed_time << log.liters_used
+        << log.sound_modus << log.initial_angular_velocity << (int) log.condition << log.vp_id << log.run << log.global_run_counter
+        << log.window_size;
     return out;
 }
 inline QDataStream &operator>>(QDataStream &in, Log &log) {
     int condition;
     in >> log.version >> *log.car >> *log.track >> log.items >> log.events >> log.elapsed_time >> log.liters_used
             >> log.sound_modus >> log.initial_angular_velocity >> condition >> log.vp_id >> log.run >> log.global_run_counter;
+    if (log.version.toDouble() >= 1.8) {
+        in >> log.window_size;
+        log.has_window_size = true;
+    } else
+        log.has_window_size = false;
     log.condition = (Condition) condition;
-    qDebug() << "log.condition: " << log.condition;
-    qDebug() << "log.sound_modus: " << log.sound_modus;
-    Q_ASSERT(condition == log.sound_modus);
-    log.valid = (log.version == QString(LOG_VERSION));
+    if (condition != log.sound_modus) {
+        qDebug() << "WARNING: log.condition (" << log.condition << ") != log.sound_modus (" << log.sound_modus << ")";
+    }
+    log.valid = (log.version == QString(LOG_VERSION)
+                 || (log.version.toDouble() == 1.7 && QString(LOG_VERSION).toDouble() == 1.8));
     if (log.events.size() > 0)
         log.next_log_event = &log.events[0];
     log.log_run_finished = false;

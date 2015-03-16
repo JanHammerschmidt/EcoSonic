@@ -77,7 +77,8 @@ private slots:
     void on_intro_run_stateChanged(int checked);
 
 protected:
-    void convert_log(QString filename);
+    void convert_log(const QString &filename, const bool overwrite);
+    void convert_log_directory(const QDir& dir, const bool overwrite);
 
 private:
     Ui::MainWindow *ui;

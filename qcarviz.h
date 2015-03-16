@@ -389,7 +389,7 @@ protected:
 
     void show_fedi_volume_intro_messagebox() {
 #ifdef GERMAN
-        QMessageBox* msgBox = new QMessageBox(QMessageBox::Information, "EcoSonic", "Bitte passen Sie die Sonifikation von der Lautsärke her so an, dass es für Sie angenehm ist!");
+        QMessageBox* msgBox = new QMessageBox(QMessageBox::Information, "EcoSonic", tr("Bitte passen Sie die Sonifikation von der Lautstärke her so an, dass es für Sie angenehm ist!"));
 #else
         QMessageBox* msgBox = new QMessageBox(QMessageBox::Information, "EcoSonic", "Please adjust the volume of the sonification to your liking!");
 #endif

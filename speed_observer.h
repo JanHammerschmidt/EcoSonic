@@ -317,7 +317,7 @@ struct TooSlowObserver {
         };
 
         speed s(min_speed_);
-        misc::saveJson("/Users/jhammers/test.json", s);
+        misc::saveJson("/Users/jhammers/test.json.zip", s, true);
     }
     void insert_stop_sign(const int pos, const int track_length) {
         const int left = boost::algorithm::clamp((pos - 100) * track_mult, 0, track_length);

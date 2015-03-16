@@ -205,9 +205,10 @@ void MainWindow::on_hud_toggle_clicked()
 void MainWindow::on_actionConvert_Log_triggered()
 {
     ui->car_viz->stop(); //true);
+    qDebug() << "QfileDialog!";
     QString filename = QFileDialog::getOpenFileName(this, "Convert Log", QDir::homePath()+"/EcoSonic", "Log Files (*.log)");
     if (filename != "" && QFile(filename).exists()) {
-        convert_log(filename);
+        convert_log(filename, true);
     } else {
         ui->car_viz->start();
     }
@@ -242,34 +243,57 @@ void MainWindow::on_reset_clicked()
     ui->car_viz->reset();
 }
 
+void MainWindow::convert_log_directory(const QDir& dir, bool const overwrite)
+{
+    Q_ASSERT(dir.exists());
+    QStringList files = dir.entryList(QStringList("*.log"));
+    if (files.size()) {
+        for (auto f : files) {
+            convert_log(dir.filePath(f), overwrite);
+        }
+    } else {
+        QStringList folders = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+        for (auto f : folders) {
+            qDebug() << "converting directory: " << f;
+            convert_log_directory(QDir(dir.filePath(f)), overwrite);
+        }
+    }
+}
+
 void MainWindow::on_actionConvert_All_Logs_in_a_Directory_triggered()
 {
     ui->car_viz->stop(); //true);
     QString directory = QFileDialog::getExistingDirectory(this, "Convert all Logs in this directory", QDir::homePath()+"/EcoSonic");
     QDir dir(directory);
     if (directory != "" && dir.exists()) {
-        QStringList files = dir.entryList(QStringList("*.log"));
-        for (auto f : files) {
-            convert_log(dir.filePath(f));
-        }
-        qDebug() << "done converting directory" << dir.absolutePath();
+        bool const overwrite = QMessageBox::question(this, "EcoSonic", "Overwrite existing logs?", QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;
+        convert_log_directory(dir, overwrite);
+        qDebug() << "done converting the whole directory" << dir.absolutePath();
     } else {
         ui->car_viz->start();
     }
 
 }
 
-void MainWindow::convert_log(QString filename)
+void MainWindow::convert_log(const QString& filename, bool const overwrite)
 {
     qDebug() << "converting" << filename;
+
+    const int dot = filename.lastIndexOf('.');
+    QString save_to = (dot != -1 ? filename.left(dot) : filename) + ".json.zip";
+    if (QFile(save_to).exists()) {
+        qDebug() << save_to << "already exists!";
+        if (overwrite)
+            qDebug() << "=> overwriting!";
+        else {
+            qDebug() << "skipping!";
+            return;
+        }
+    }
     ui->car_viz->load_log(filename, false);
     ui->car_viz->log_run();
-    const int dot = filename.lastIndexOf('.');
-    if (dot != -1)
-        filename = filename.left(dot);
-    filename += ".json";
-    ui->car_viz->save_json(filename);
-    qDebug() << filename << "saved";
+    ui->car_viz->save_json(save_to);
+    qDebug() << save_to << "saved";
 }
 
 void MainWindow::on_intro_run_stateChanged(int checked)

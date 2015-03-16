@@ -462,6 +462,7 @@ bool QCarViz::tick() {
         car->log->run = run_->value();
         car->log->condition = (Condition) this->current_condition_->currentIndex();
         car->log->global_run_counter = global_run_counter;
+        car->log->window_size = size();
         global_run_counter += 1;
         car->save_log(intro_run_->checkState() == Qt::Checked, program_start_time);
         show_end_of_run_messagebox();
@@ -776,8 +777,8 @@ void QCarViz::draw(QPainter& painter)
     text_hint.draw(painter, QPointF(0.5*width(), 50));
 
     if (show_eye_tracker_point) {
-        //eye_tracker_point = QCursor::pos();
-        //globalToLocalCoordinates(eye_tracker_point);
+            //eye_tracker_point = QCursor::pos();
+            //globalToLocalCoordinates(eye_tracker_point);
         painter.setTransform(QTransform());
         painter.setBrush(Qt::NoBrush);
         painter.setPen(Qt::black);
