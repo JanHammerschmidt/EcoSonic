@@ -5,16 +5,26 @@ import numpy as np
 import matplotlib.pyplot as plt
 import itertools
 import os
-import math
+import math, random
 from misc import *
+from timer import Timer, Profiler, ProfilerExclusive
+
+#import cProfile
 #from copy import deepcopy
-# from timer import Timer
+
+def show_plot():
+    profiler.pause()
+    plt.show()
+    profiler.resume()
+
+profiler = ProfilerExclusive(True)
 
 def show_scatter(gather_func, eval_func):
-    x, y, c = [], [], []
-    gather_func(x, y, c, eval_func)
-    plt.scatter(x, y, color=c)
-    plt.show()
+    with Profiler.Auto(profiler, 'show_scatter', False):
+        x, y, c = [], [], []
+        gather_func(x, y, c, eval_func)
+        plt.scatter(x, y, color=c)
+        show_plot()
 
 def condition2color(cond):
     if cond == "VIS":
@@ -44,13 +54,21 @@ class EcoSonic_log:
     def __init__(self, file):
         self.file = file
 
+    @property
+    def cache_identifier(self): return self.file
+
     @lazy_property
-    def json(self): return load_json(self.file)
+    def json(self):
+        with Profiler.Auto(profiler, 'load_json', False):
+            return load_json(self.file)
+
+    # @lazy_cached_property
+    # def properties(self):
 
     @lazy_property
     def items(self): return self.json["items"]
 
-    @lazy_property
+    @lazy_cached_property
     def dt(self): return self.gather("dt")
     @lazy_property
     def speed(self): return self.gather("speed")
@@ -58,20 +76,20 @@ class EcoSonic_log:
     def pos(self): return self.gather("position")
     @lazy_property
     def throttle(self): return self.gather("throttle")
-    @lazy_property
+    @lazy_cached_property
     def steering(self): return self.gather("steering")
     @lazy_property
     def speed(self): return self.gather("speed")
 
-    @lazy_property
+    @lazy_cached_property
     def condition(self):
         return "intro" if "intro" in self.file else self.json["condition"]
 
-    @lazy_property
+    @lazy_cached_property
     def global_run_counter(self): return self.json["global_run_counter"]
-    @lazy_property
+    @lazy_cached_property
     def elapsed_time(self): return self.json["elapsed_time"]
-    @lazy_property
+    @lazy_cached_property
     def consumption(self): return self.json["liters_used"]
 
 
@@ -79,8 +97,9 @@ class EcoSonic_log:
     def t(self): return list(itertools.accumulate(self.dt))
 
     def gather(self, str):
-        items = self.items
-        return [i[str] for i in self.items]
+        with Profiler.Auto(profiler, 'gather', False):
+            items = self.items
+            return [i[str] for i in self.items]
 
     def quantize_params(self, x, quant):
         xq_max = math.ceil(x[-1]) + 1 # range of (quantized) x-values
@@ -128,7 +147,7 @@ class EcoSonic_log:
 
     def scatter_steering_integral_vs_run(self, x, y, c):
         x.append(self.global_run_counter)
-        y.append(self.steering_integral())
+        y.append(self.steering_integral)
         c.append(condition2color(self.condition))
 
     def test(self):
@@ -141,24 +160,37 @@ class EcoSonic_log:
         ax2.plot(tq, posq)
         plt.show()
 
+    def show_steering(self):
+        plt.plot(self.t, self.steering, color=condition2color(self.condition))
+        show_plot()
+
+    @lazy_property
     def steering_integral(self):
-        st, dt = self.steering, self.dt
-        si = 0
-        for i,s in enumerate(st):
-            si += dt[i] * s
-        return si / self.elapsed_time
+        with Profiler.Auto(profiler, 'steering_integral', False):
+            st, dt = self.steering, self.dt
+            # with Profiler.Auto(profiler, 'convert', False):
+            #     dtn, stn = np.array(dt), np.array(st)
+            si = 0
+            for i,s in enumerate(st):
+                si += dt[i] * abs(s)
+            #si = sum([i[0]*abs(i[1]) for i in zip(dt,st)])
+            #si = sum(np.array(dt) * abs(np.array(st)))
+            return si # / self.elapsed_time
 
 
 
 class EcoSonic_VP:
-    logs = []
-
     def __init__(self, id, base_folder='/Users/jhammers/Dropbox/EcoSonic/', keep_intro = False):
+        self.logs = []
         folder = base_folder + "VP" + str(id) + "/"
         for file in os.listdir(folder):
             if file.endswith("json.zip") and (keep_intro or "intro" not in file):
                 #print(file)
                 self.logs.append(EcoSonic_log(folder + file))
+
+    def load_json(self):
+        for log in self.logs:
+            log.json
 
     def scatter_gather(self, x, y, c, func):
         for log in self.logs:
@@ -179,6 +211,7 @@ class EcoSonic_VP:
             for st in sts[1:]:
                 sts[0] += st
             sts[0] /= len(sts)
+            print(cond, ':', sum(abs(sts[0]))) # steering_integral
 
         x_quant = self.logs[0].quantize_x(quant_params)
         f, ax = plt.subplots(3)
@@ -188,27 +221,55 @@ class EcoSonic_VP:
         plt.show()
 
 class EcoSonic_All:
-    vps = []
 
     def __init__(self, folder = '/Users/jhammers/Dropbox/EcoSonic/', keep_intros = False):
+        self.vps = []
         for f in os.listdir(folder):
             if f.startswith('VP'):
                 self.vps.append(EcoSonic_VP(int(f[2:]), folder, keep_intros))
 
-    def scatter_gather(self, x, y, c, func):
+    def load_json(self):
         for vp in self.vps:
+            vp.load_json()
+
+    def scatter_gather(self, x, y, c, func):
+        for i,vp in enumerate(self.vps):
             vp.scatter_gather(x, y, c, func)
 
+    def all_logs(self):
+        logs = []
+        for vp in self.vps:
+            logs.extend(vp.logs)
+        return logs
 
-#plt.hist(dt, 100)
-#plt.plot(pos, speed)
+###################################################
+profiler.start('load cache')
+lazy_cached_property.load_cache()
+profiler.switch_to('main')
 
 all = EcoSonic_All()
-#all.show_consumption_vs_run()
-show_scatter(all.scatter_gather, EcoSonic_log.scatter_steering_integral_vs_run)
-# show_scatter(all.scatter_gather, EcoSonic_log.scatter_consumption_vs_lap_time)
+
+logs = all.all_logs()
+while True:
+    log = random.choice(logs)
+    print(log.condition, ':', log.steering_integral)
+    log.show_steering()
+
+# while True:
+#     vp = random.choice(all.vps)
+#     vp.show_steering()
+
+#with Timer('calc'):
+    #show_scatter(all.scatter_gather, EcoSonic_log.scatter_steering_integral_vs_run)
+    # show_scatter(all.scatter_gather, EcoSonic_log.scatter_consumption_vs_lap_time)
+
 # show_scatter(all.scatter_gather, EcoSonic_log.scatter_consumption_vs_run)
 
+#plt.show()
+profiler.switch_to('save cache')
+lazy_cached_property.save_cache()
+profiler.stop()
+profiler.output()
 exit()
 
 vp = EcoSonic_VP(1003)
@@ -223,6 +284,8 @@ log = vp.logs[0]
 items = log.items
 pos = log.pos
 log.test()
+
+#cProfile.run('show_scatter(all.scatter_gather, EcoSonic_log.scatter_steering_integral_vs_run)')
 
 #vp.show_steering()
 #vp.show_consumption_vs_time()
