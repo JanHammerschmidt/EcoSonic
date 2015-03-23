@@ -5,6 +5,12 @@ import zipfile
 import pickle
 import os
 
+def get_class_value(obj, val_name):
+    val = getattr(obj, val_name)
+    if callable(val):
+        val = val()
+    return val
+
 def load_json(path, is_zip=True):
     if is_zip:
         z = zipfile.ZipFile(path)
@@ -37,6 +43,7 @@ class lazy_cached_property(object):
     cache = {}
     cache_loaded = False
     default_filename = '~/python_lazy_cached_property_cache.bin'
+    invalidate = False
 
     def __init__(self, fget):
         if not lazy_cached_property.cache_loaded:
@@ -49,7 +56,7 @@ class lazy_cached_property(object):
             return None
         cache_id = (obj.cache_identifier, self.func_name)
         value = lazy_cached_property.cache.get(cache_id, None)
-        if value is None:
+        if value is None or lazy_cached_property.invalidate:
             value = self.fget(obj)
             lazy_cached_property.cache[cache_id] = value
         setattr(obj,self.func_name,value)
