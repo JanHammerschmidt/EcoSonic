@@ -541,6 +541,7 @@ public:
         track_path.swap(path);
     }
     bool is_log_run() const { return log_run_; }
+    void set_scripted_steering(qreal const steering) { scripted_steering = steering; }
 protected:
     virtual void resizeEvent(QResizeEvent *e) {
         update_track_path(e->size().height());
@@ -584,6 +585,7 @@ protected:
     QRectF turn_sign_rect;
     qreal steering = 0; // between -1 (left) and 1 (right)
     qreal user_steering = 0;
+    qreal scripted_steering = 0;
     QPointF eye_tracker_point;
     qreal t_last_eye_tracking_update = 0;
     EyeTrackerClient* eye_tracker_client = nullptr;

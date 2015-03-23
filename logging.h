@@ -9,7 +9,7 @@
 #include "misc.h"
 
 #define LOG_VERSION "1.8"
-#define LOG_VERSION_JSON "1.0"
+#define LOG_VERSION_JSON "1.1"
 
 struct LogItem
 {
@@ -17,7 +17,7 @@ struct LogItem
     qreal braking;
     int gear;
     QPointF eye_tracker_point;
-    qreal steering;
+    qreal user_steering; // user-steering!
     qreal dt;
 };
 
@@ -25,20 +25,29 @@ struct LogItemJson : public LogItem
 {
     qreal speed; // kmh
     qreal position; // on the track_path
-    qreal rpm; // !!
-    qreal acceleration; // !! [m/s^2]
-    qreal consumption; // !! [L/s]
-    qreal rel_consumption; // !! [L/100km]
+    qreal rpm;
+    qreal acceleration; // [m/s^2]
+    qreal consumption; // [L/s]
+    qreal rel_consumption; // [L/100km]
     qreal rel_consumption_slow; // [L/100km] from the hud
+    qreal scripted_steering;
+    qreal steering;
     void write(QJsonObject& j) {
         j["throttle"] = throttle;
         j["braking"] = braking;
         j["gear"] = gear;
         //j["eye_tracker_point"] = !!
-        j["steering"] = steering;
         j["dt"] = dt;
         j["speed"] = speed;
         j["position"] = position;
+        j["rpm"] = rpm;
+        j["acceleration"] = acceleration;
+        j["consumption"] = consumption;
+        j["rel_consumption"] = rel_consumption;
+        j["rel_consumption_slow"] = rel_consumption_slow;
+        j["user_steering"] = user_steering;
+        j["scripted_steering"] = scripted_steering;
+        j["steering"] = steering;
     }
 };
 
@@ -57,6 +66,7 @@ struct LogEvent {
             case Speeding: stype = "Speeding"; break;
             case StopSign: stype = "StopSign"; break;
             case TrafficLight: stype = "TrafficLight"; break;
+            case TooSlow: stype = "TooSlow"; break;
             default: Q_ASSERT(false);
         }
         Q_ASSERT(stype != nullptr);
@@ -113,10 +123,13 @@ struct Log
     void write(QJsonObject& j) const {
         Q_ASSERT(log_run_finished);
         j["log_version"] = LOG_VERSION_JSON;
-        j["condition"] = sound_modus == 0 ? "VIS" : (sound_modus == 1 ? "SLP" : (sound_modus == 2 ? "CNT" : "UNDEFINED!"));
+        j["sound_modus"] = sound_modus == 0 ? "VIS" : (sound_modus == 1 ? "SLP" : (sound_modus == 2 ? "CNT" : "UNDEFINED!"));
+        j["condition"] = condition_string(condition);
         j["global_run_counter"] = global_run_counter;
+        j["run"] = run;
         j["elapsed_time"] = elapsed_time;
         j["liters_used"] = liters_used;
+        j["vp_id"] = vp_id;
         QJsonArray jitems;
         for (auto i : items_json) {
             QJsonObject ji;
@@ -124,7 +137,13 @@ struct Log
             jitems.append(ji);
         }
         j["items"] = jitems;
-
+        QJsonArray jevents;
+        for (auto i : events) {
+            QJsonObject ji;
+            i.write(ji);
+            jevents.append(ji);
+        }
+        j["events"] = jevents;
     }
 
     Car* car;
@@ -153,11 +172,11 @@ struct Log
 
 
 inline QDataStream &operator<<(QDataStream &out, const LogItem &i) {
-    out << i.throttle << i.braking << i.gear << i.eye_tracker_point << i.steering << i.dt;
+    out << i.throttle << i.braking << i.gear << i.eye_tracker_point << i.user_steering << i.dt;
     return out;
 }
 inline QDataStream &operator>>(QDataStream &in, LogItem &i) {
-    in >> i.throttle >> i.braking >> i.gear >> i.eye_tracker_point >> i.steering >> i.dt;
+    in >> i.throttle >> i.braking >> i.gear >> i.eye_tracker_point >> i.user_steering >> i.dt;
     return in;
 }
 

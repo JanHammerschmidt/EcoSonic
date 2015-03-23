@@ -3,8 +3,10 @@
 #include "ui_mainwindow.h"
 #include "hudwindow.h"
 #include "engine.h"
+#include "Profiler.hh"
 
 Track::Images Track::images;
+profiler::ProfilerExclusive gProfilerE;
 
 void plot_torque_map(QCustomPlot* plot, Engine& engine)
 {
@@ -278,6 +280,7 @@ void MainWindow::on_actionConvert_All_Logs_in_a_Directory_triggered()
 void MainWindow::convert_log(const QString& filename, bool const overwrite)
 {
     qDebug() << "converting" << filename;
+gProfilerE.start("convert_log", true);
 
     const int dot = filename.lastIndexOf('.');
     QString save_to = (dot != -1 ? filename.left(dot) : filename) + ".json.zip";
@@ -290,10 +293,16 @@ void MainWindow::convert_log(const QString& filename, bool const overwrite)
             return;
         }
     }
+gProfilerE.start("load_log", true);
     ui->car_viz->load_log(filename, false);
+gProfilerE.switchTo("log_run", true);
     ui->car_viz->log_run();
+gProfilerE.switchTo("save_json", true);
     ui->car_viz->save_json(save_to);
+gProfilerE.stop();
     qDebug() << save_to << "saved";
+gProfilerE.stopAll();
+gProfilerE.output();
 }
 
 void MainWindow::on_intro_run_stateChanged(int checked)

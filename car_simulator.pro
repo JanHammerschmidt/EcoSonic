@@ -19,7 +19,7 @@ LIBS += -framework CoreFoundation
 LIBS += -L/Users/jhammers/boost_1_57_0/stage/lib -lboost_thread -lboost_system
 LIBS += -L$$PWD/lib/quazip/release -lquazip -lz
 
-DEFINES += CAR_VIZ_FINAL_STUDY
+#DEFINES += CAR_VIZ_FINAL_STUDY
 DEFINES += CAR_VIZ_MAX_RUNS=4
 DEFINES += GERMAN
 

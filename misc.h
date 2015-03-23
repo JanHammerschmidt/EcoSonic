@@ -32,10 +32,14 @@ bool loadObj(const QString filename, T& obj) {
 
 template<class T>
 bool saveJson(const QString filename, const T& obj, bool compressed = true) {
-    QFile file(filename);
+    Q_ASSERT(!compressed || filename.endsWith(".zip"));
+    const QString log_filename = filename.left(filename.length()-4);
+    QFile file(log_filename);
     QDir().mkpath(QFileInfo(file).absolutePath());
-    if (!file.open(QIODevice::WriteOnly))
+    if (!file.open(QIODevice::WriteOnly)) {
+        Q_ASSERT(false);
         return false;
+    }
 
     QJsonObject json_obj;
     obj.write(json_obj);
@@ -43,8 +47,8 @@ bool saveJson(const QString filename, const T& obj, bool compressed = true) {
     file.write(doc.toJson());
     file.close();
     if (compressed) {
-        QString save_to = filename.endsWith(".zip") ? filename : filename + ".zip";
-        JlCompress::compressFile(save_to, filename);
+        QString save_to = filename; //filename.endsWith(".zip") ? filename : filename + ".zip";
+        JlCompress::compressFile(save_to, log_filename);
         file.remove();
     }
     return true;

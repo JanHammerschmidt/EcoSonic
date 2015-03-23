@@ -2,6 +2,10 @@
 #include "qcarviz.h"
 #include "speed_observer.h"
 #include "logging.h"
+#include "Profiler.hh"
+
+using profiler::ProfilerExclusive;
+extern ProfilerExclusive gProfilerE;
 
 #define DRAW_ARROW_SIGN 3 // 0: simple arrow 1: arrow sign 2: "street"-arrow 3: curved "street"-arrow
 
@@ -261,6 +265,7 @@ void QCarViz::prepare_track() {
 }
 
 bool QCarViz::tick() {
+ProfilerExclusive::AutoStop pa(gProfilerE, "tick");
     //Q_ASSERT(started);
     if (!started) {
         if (wingman_input.valid() && wingman_input.update_back_buttons()) {
@@ -274,6 +279,7 @@ bool QCarViz::tick() {
     static bool changed = false; // if throttle / gas have changed (for the sliders in the gui)
     user_steering = 0; // user steering (or from replay)
     if (replay == true) {
+ProfilerExclusive::AutoStop pa(gProfilerE, "section 1");
         if (replay_index >= car->log->items.size()) {
             qDebug() << "elapsed_time:" << time_elapsed();
             qDebug() << "deciliters_used:" << consumption_monitor.liters_used * 10;
@@ -288,7 +294,7 @@ bool QCarViz::tick() {
         car->throttle = log_item.throttle;
         eye_tracker_point = log_item.eye_tracker_point;
         //qDebug() << eye_tracker_point;
-        user_steering = log_item.steering;
+        user_steering = log_item.user_steering;
         changed = true;
         if (log_run_) {
             LogItemJson& log_item_json = car->log->items_json[replay_index];
@@ -417,12 +423,20 @@ bool QCarViz::tick() {
         }
     }
     steer(user_steering);
-
+    scripted_steering = 0;
+    {
+ProfilerExclusive::AutoStop pa(gProfilerE, "observer");
     for (auto o : signObserver)
         o->tick(replay, t, dt);
     tooslow_observer_->tick();
+    }
 
     if (replay) {
+        if (log_run_) {
+            LogItemJson& log_item_json = car->log->items_json[replay_index-1]; // replay_index was incremented before!
+            log_item_json.scripted_steering = scripted_steering;
+            log_item_json.steering = steering;
+        }
         for ( ; ; ) {
             LogEvent* event = car->log->next_event(replay_index);
             if (!event)
@@ -444,7 +458,9 @@ bool QCarViz::tick() {
     const qreal alpha_scale = 0.8;
     const qreal alpha = !track_path.length() ? 0 : (alpha_scale * atan(-track_path.slopeAtPercent(track_path.percentAtLength(current_pos)))); // slope [rad]
     Q_ASSERT(!isnan(alpha));
+gProfilerE.start("car:tick");
     car->tick(dt, alpha, replay);
+gProfilerE.stop();
     if (track_started) {
         consumption_monitor.tick(car->engine.get_consumption_L_s(), dt, car->speed);
     } else {
@@ -476,8 +492,10 @@ bool QCarViz::tick() {
     static qreal last_elapsed = 0;
     qreal elapsed = time_delta.get_elapsed();
     if (elapsed - last_elapsed > 0.05) {
+ProfilerExclusive::AutoStop pa(gProfilerE, "slow tick");
         //qDebug() << "slow tick" << elapsed << last_elapsed;
         if (changed) {
+ProfilerExclusive::AutoStop pa(gProfilerE, "slow tick:slider");
             throttle_slider->setValue(car->throttle * 100);
             breaking_slider->setValue(car->braking * 100);
             changed = false;
@@ -496,7 +514,10 @@ bool QCarViz::tick() {
                 ::new(&eye_tracker_point) QPointF();
             }
         }
-        emit slow_tick(elapsed - last_elapsed, elapsed, consumption_monitor);
+//gProfilerE.start("slow tick:slow_tick");
+        if (!log_run_)
+            emit slow_tick(elapsed - last_elapsed, elapsed, consumption_monitor);
+//gProfilerE.stop();
         last_elapsed = elapsed;
     }
     return true;

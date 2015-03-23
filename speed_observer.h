@@ -209,7 +209,9 @@ protected:
             default: Q_ASSERT(false);
         }
         //qDebug() << "stage " << stage << " steer " << intensity / dt;
-        carViz.steer(intensity * (info->left ? -1 : 1));
+        qreal const steering = intensity * (info->left ? -1 : 1);
+        carViz.steer(steering);
+        carViz.set_scripted_steering(steering);
         return false;
     }
 public:
