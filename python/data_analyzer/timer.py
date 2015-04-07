@@ -46,16 +46,17 @@ class ProfilerItem(object):
         assert item != self
         self.replaced = item
 
+class Profiler_Auto(object):
+    __slots__ = ['profiler', 'name', 'verbose']
+    def __init__(self, profiler, name, verbose = None):
+        self.profiler, self.name, self.verbose = profiler, name, verbose
+    def __enter__(self):
+        self.profiler.start(self.name, self.verbose)
+    def __exit__(self, *args):
+        self.profiler.stop(self.name)
+
 
 class Profiler(object):
-    class Auto(object):
-        __slots__ = ['profiler', 'name', 'verbose']
-        def __init__(self, profiler, name, verbose = None):
-            self.profiler, self.name, self.verbose = profiler, name, verbose
-        def __enter__(self):
-            self.profiler.start(self.name, self.verbose)
-        def __exit__(self, *args):
-            self.profiler.stop(self.name)
 
     def __init__(self):
         self.items = {}
@@ -89,6 +90,7 @@ class ProfilerExclusive(object):
         self.verbose = verbose
         self.items = {}
         self.started = None
+        ProfilerExclusive.instance = self
 
     def section(self, name): print(">", name)
     def _verbose(self, verbose):
@@ -136,8 +138,13 @@ class ProfilerExclusive(object):
             self.started.stop()
             started = None
 
-    def output(self):
+    def auto(self, name, verbose = None):
+        return Profiler_Auto(self, name, verbose)
+
+    def output(self, min_percent = 5):
         t_all = sum(map(lambda i: i.time, self.items.values()))
         print("took %f seconds" % t_all)
         for name, item in sorted(self.items.items(), key=lambda i:i[1].time, reverse=True):
-            print('[%i%%] %s: %f (%i)' % (item.time / t_all * 100, name, item.time, item.count))
+            percent = item.time / t_all * 100
+            if percent > min_percent:
+                print('[%i%%] %s: %f (%i)' % (item.time / t_all * 100, name, item.time, item.count))
