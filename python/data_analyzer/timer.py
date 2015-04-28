@@ -76,6 +76,11 @@ class Profiler(object):
         for name, item in sorted(self.items.items(), key=lambda i:i[1].time, reverse=True):
             print('%s: %f' % (name, item.time))
 
+class ProfilerDummy(object):
+    def auto(self, name, verbose = None): pass
+    def pause(self): pass
+    def resume(self): pass
+
 class ProfilerExclusive(object):
     # class AutoStop(object):
     #     __slots__ = ['profiler', 'name', 'started']
@@ -141,10 +146,10 @@ class ProfilerExclusive(object):
     def auto(self, name, verbose = None):
         return Profiler_Auto(self, name, verbose)
 
-    def output(self, min_percent = 5):
+    def output(self, min_time = 0.5, min_percent = 3):
         t_all = sum(map(lambda i: i.time, self.items.values()))
         print("took %f seconds" % t_all)
         for name, item in sorted(self.items.items(), key=lambda i:i[1].time, reverse=True):
             percent = item.time / t_all * 100
-            if percent > min_percent:
+            if item.time > min_time and percent > min_percent:
                 print('[%i%%] %s: %f (%i)' % (item.time / t_all * 100, name, item.time, item.count))

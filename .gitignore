@@ -11,3 +11,5 @@ media/*
 build/**
 **/build/**
 **/lib/**
+*.idea*
+*__pycache__*

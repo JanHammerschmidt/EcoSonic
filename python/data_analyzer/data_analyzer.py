@@ -1,3 +1,5 @@
+from idlelib.SearchEngine import get
+
 __author__ = 'jhammers'
 
 print('> start')
@@ -8,69 +10,39 @@ profiler.start('import', True)
 from misc import *
 import numpy as np
 import matplotlib.pyplot as plt
-import math, random
+import math, random, plots
 from collections import defaultdict, OrderedDict
 from itertools import permutations, accumulate
 from scipy.stats import ttest_ind
+from prettytable import PrettyTable
+from plots import show_plot, group_boxplot, boxplot, show_scatter, plot, errorbar
 
 lazy_cached_property2.profiler = profiler
 profiler.switch_to('parsing', False)
 
-def show_plot(show = True):
-    if not show:
-        return
-    profiler.pause()
-    plt.show()
-    profiler.resume()
-
-
-def scatter_gather(items, x_val, y_val, c_val='condition_color'):
-    x, y, c = [], [], []
-    for i in items:
-        x.append(get_class_value(i, x_val))
-        y.append(get_class_value(i, y_val))
-        c.append(get_class_value(i, c_val))
-    return x, y, c
-
-def show_scatter(items, x_val, y_val, c_val='condition_color', ylabel = None, xlabel = None, show = None, fig = None):
-    with profiler.auto('show_scatter', False):
-        x, y, c = scatter_gather(items, x_val, y_val, c_val)
-        ylabel = y_val if ylabel is None else ylabel
-        xlabel = x_val if xlabel is None else xlabel # TODO!
-        show = fig is None if show is None else show
-        plot = plt if fig is None else fig
-        if ylabel != '':
-            if fig is None:
-                plot.figure().canvas.set_window_title(ylabel)
-                plot.ylabel(ylabel)
-                plot.xlabel(xlabel)
-            else:
-                fig.set_ylabel(ylabel)
-                fig.set_xlabel(xlabel)
-        plot.scatter(x, y, color=c)
-        show_plot(show)
-        return x,y
-
-# def show_scatter_old(gather_func, eval_func, show = True):
-#     with Profiler.Auto(profiler, 'show_scatter', False):
-#         x, y, c = [], [], []
-#         gather_func(x, y, c, eval_func)
-#         plt.scatter(x, y, color=c)
-#         if show:
-#             show_plot()
+default_condition_order = ['VIS', 'CNT', 'SLP']
 
 def condition2color(cond):
     if cond == "VIS":
-        return "blue"
+        return '#2C7BB6' #"blue"
     elif cond == "SLP":
-        return "red"
+        return '#D7191C' # "red"
     elif cond == "CNT":
-        return "green"
+        return '#008837' # "green"
     elif cond == "intro":
         return "yellow"
     else:
         print("WARNING! unknown condition: " + cond)
         return "black"
+
+class Result(object):
+    def __init__(self, prop, cond1, cond2, p_ttest, run = -1):
+        self.prop, self.cond1, self.cond2, self.p_ttest, self.run = prop, cond1, cond2, p_ttest, run
+
+    def __str__(self):
+        return "{}{} ({},{}): ttest: {}{:.3f}".format(
+            self.prop, '['+str(self.run)+']' if self.run >= 0 else '[A]',
+            self.cond1, self.cond2, '* ' if self.p_ttest < 0.05 else '  ', self.p_ttest)
 
 # def speed_analyze(log):
 #     plt.plot(log.pos, log.speed)
@@ -81,7 +53,7 @@ def condition2color(cond):
 #     plt.plot(s)
 #     plt.show()
 
-profiler.switch_to('parsing:EcoSonic_log', False)
+# profiler.switch_to('parsing:EcoSonic_log', False)
 
 class EcoSonic_log:
     # QUANT = 0.25
@@ -110,6 +82,8 @@ class EcoSonic_log:
     def global_run_counter(self): return self.json["global_run_counter"]
     @lazy_cached_property2
     def run(self): return self.json["run"]
+    @lazy_property
+    def condition_rank(self): return (self.global_run_counter-1) / 4 + 1 # 1-3
     @lazy_cached_property2
     def vp_id(self): return self.json["vp_id"]
     @lazy_property
@@ -138,6 +112,10 @@ class EcoSonic_log:
     def speed(self): return self.gather("speed")
     @lazy_cached_property2
     def pos(self): return self.gather("position")
+    @lazy_cached_property2
+    def acceleration(self): return self.gather("acceleration")
+    @lazy_cached_property2
+    def rpm(self): return self.gather("rpm")
     @lazy_cached_property2
     def throttle(self): return self.gather("throttle")
     @lazy_cached_property2
@@ -189,17 +167,13 @@ class EcoSonic_log:
         return np.mean(self.steering_reaction_times)
 
     @lazy_property
-    def steering_integral(self):
-        with profiler.auto('steering_integral', False):
-            st, dt = self.steering, self.dt
-            # with Profiler.Auto(profiler, 'convert', False):
-            #     dtn, stn = np.array(dt), np.array(st)
-            si = 0
-            for i,s in enumerate(st):
-                si += dt[i] * abs(s)
-            #si = sum([i[0]*abs(i[1]) for i in zip(dt,st)])
-            #si = sum(np.array(dt) * abs(np.array(st)))
-            return si # / self.elapsed_time
+    def steering_integral(self): return self.integral('steering')
+
+    @lazy_property
+    def acceleration_integral(self): return self.integral('acceleration')
+
+    @lazy_property
+    def avg_rpm(self): return np.mean(self.rpm)
 
     ### technical routines ###
     def sanity_check(self):
@@ -208,15 +182,24 @@ class EcoSonic_log:
         for data in [self.dt, self.steering, self.scripted_steering]:
             assert len(data) == len_t
 
-    def test(self):
-        #tq, posq = self.quantize(self.pos, self.t, 0.25)
-        tq, posq = self.quantize(self.steering, self.t, 0.25)
-        f, (ax1, ax2) = plt.subplots(2)
-        print(len(self.t))
-        print(len(tq))
-        ax1.plot(self.t, self.steering)
-        ax2.plot(tq, posq)
-        plt.show()
+    def integral(self, prop, time_normalized = False):
+        data, dt = get_class_value(self, prop), self.dt
+        #si = sum([i[0]*abs(i[1]) for i in zip(dt,st)])
+        #si = sum(np.array(dt) * abs(np.array(st)))
+        acc = 0
+        for i,d in enumerate(data):
+            acc += dt[i] * abs(d)
+        return acc / self.elapsed_time if time_normalized else acc
+
+    # def test(self):
+    #     #tq, posq = self.quantize(self.pos, self.t, 0.25)
+    #     tq, posq = self.quantize(self.steering, self.t, 0.25)
+    #     f, (ax1, ax2) = plt.subplots(2)
+    #     print(len(self.t))
+    #     print(len(tq))
+    #     ax1.plot(self.t, self.steering)
+    #     ax2.plot(tq, posq)
+    #     plt.show()
 
     def show_steering(self):
         f, ax = plt.subplots(3)
@@ -327,7 +310,7 @@ class EcoSonic_log:
 
             return vals, params
 
-profiler.switch_to('parsing:EcoSonic_VP', False)
+# profiler.switch_to('parsing:EcoSonic_VP', False)
 
 class EcoSonic_VP:
     def __init__(self, vp_id, base_folder='/Users/jhammers/Dropbox/EcoSonic/', keep_intro = False):
@@ -337,7 +320,7 @@ class EcoSonic_VP:
             if file.endswith("json.zip") and (keep_intro or "intro" not in file):
                 #print(file)
                 self.logs.append(EcoSonic_log(folder + file))
-        if False: # !!
+        if True:
             self.logs = [log for log in self.logs if log.run <= 4]
             self.logs.sort(key=lambda x:x.global_run_counter)
             for i, log in enumerate(self.logs):
@@ -399,7 +382,7 @@ class EcoSonic_VP:
 
         plt.show()
 
-profiler.switch_to('parsing:EcoSonic_All', False)
+# profiler.switch_to('parsing:EcoSonic_All', False)
 
 class EcoSonic_All:
 
@@ -426,10 +409,10 @@ class EcoSonic_All:
         for i,vp in enumerate(self.vps):
             vp.scatter_gather(x, y, c, func)
 
-    def all_logs(self, no_filter_5 = False):
+    def all_logs(self, filter_5 = True):
         logs = [log for vp in self.vps
                     for log in vp.logs
-                    if no_filter_5 or log.run < 5]
+                    if log.run < 5 or not filter_5]
         return logs if self.jens is None \
             else logs[:-12] if self.jens else logs[12:]
 
@@ -437,19 +420,23 @@ class EcoSonic_All:
         for log in self.all_logs():
             log.gather_events()
 
-    def data_vs_run(self, prop):
-        data = defaultdict(lambda: [[] for _ in range(4)])
+    def data_vs_run(self, prop, global_run_counter = False):
+        max_items = 12 if global_run_counter else 4
+        data = defaultdict(lambda: [[] for _ in range(max_items)])
         for log in self.all_logs():
-            if log.run < 5:
-                val = get_class_value(log, prop)
-                if val is not None:
-                    data[log.condition][log.run-1].append(val)
-        return data
+            val = get_class_value(log, prop)
+            if val is not None:
+                idx = log.global_run_counter if global_run_counter else log.run
+                assert idx <= max_items
+                data[log.condition][idx-1].append(val)
+        return data, max_items
 
-    def plot_avg_vs_run(self, prop, show=True):
-        data = self.data_vs_run(prop)
-        for key,val in data.items():
-            plt.plot(range(4), [np.mean(i) for i in val], c=condition2color(key))
+    def plot_avg_vs_run(self, prop, global_run_counter = False, show=None, fig=None):
+        data, max_items = self.data_vs_run(prop, global_run_counter=global_run_counter)
+        for key,values in data.items():
+            errorbar(np.arange(max_items)+1, values, ylabel=prop,
+                 xlabel='global run counter' if global_run_counter else 'run',
+                 colors=condition2color(key), show=show, fig=fig)
         show_plot(show)
 
     def plot_avg_vs_vp_id(self, prop, show=True):
@@ -477,7 +464,7 @@ class EcoSonic_All:
         # show_plot()
 
     def ttest_per_run(self, prop, runs = [0,3]):
-        data = self.data_vs_run(prop)
+        data,_ = self.data_vs_run(prop)
         # cond, perm = list(data.keys()), []
         # for i,x in enumerate(cond):
         #     for j in range(i+1, len(cond)):
@@ -485,36 +472,46 @@ class EcoSonic_All:
         perms = permutations(data.keys(), 2)
         values = []
         for cond1,cond2 in perms:
-            for i in runs:
-                t,p = ttest_ind(data[cond1][i], data[cond2][i])
+            for run in runs:
+                t,p = ttest_ind(data[cond1][run], data[cond2][run])
                 if t > 0: # only 'smaller than'
                     continue
-                values.append( ((i,(cond1,cond2)), (t, p/2)) ) # one-sided test!
-        values.sort(key = lambda x:x[1][1])
+                values.append(Result(prop, cond1, cond2, p/2, run)) # one-sided test!
+        values.sort(key = lambda x:x.p_ttest)
         return values
 
     def ttest_all(self, prop):
-        data = self.data_vs_run(prop)
+        data,_ = self.data_vs_run(prop)
         for key,d in data.items():
                                                               #flatten data (use all runs)
             data[key] = [i for sublist in d for i in sublist] #alternatively: itertools.chain.from_iterable(d)
         perm = permutations(data.keys(), 2)
         values = []
-        for p in perm:
-            ttest = ttest_ind(data[p[0]], data[p[1]])
-            if ttest[0] > 0: # only 'smaller than'
+        for cond1,cond2 in perm:
+            t,p = ttest_ind(data[cond1], data[cond2])
+            if t > 0: # only 'smaller than'
                 continue
-            ttest = (ttest[0], ttest[1] / 2) # one-sided test!
-            values.append( (p,ttest) )
-        values.sort(key = lambda x:x[1][1])
+            values.append(Result(prop, cond1, cond2, p))
+        values.sort(key = lambda x:x.p_ttest)
         return values
 
     def ttest_multiple(self, props, max_items = 5):
         values = []
         for p in props:
+            values.extend(self.ttest_per_run(p)[:max_items])
+            values.extend(self.ttest_all(p)[:max_items])
+        values.sort(key = lambda x:x.p_ttest)
+        return values
+
+    def ttest_multiple_visual(self, props, max_items = 5):
+        for p in props:
+            values = []
             values.extend([(p,v) for v in self.ttest_per_run(p)][:max_items])
             values.extend([(p,v) for v in self.ttest_all(p)][:max_items])
-        values.sort(key = lambda x:x[1][1][1])
+            values.sort(key = lambda x:x[1][1][1])
+            print(values)
+            #if values[0][1][1][1] <= 0.1:
+            #    self.plot_avg_vs_run(p)
         return values
 
     def ttest_eye_tracking(self):
@@ -543,23 +540,90 @@ class EcoSonic_All:
                 ax[gear].plot(x,hist,c=condition2color(cond))
         show_plot()
 
+    def boxplot_all(self, prop, show=None, fig=None):
+        values, data = {}, []
+        for log in self.all_logs(filter_5 = True):
+            val = get_class_value(log, prop)
+            if val is not None:
+                values.setdefault(log.condition, []).append(val)
+        conditions = EcoSonic_VP.condition_order_from_vp_id(1)
+        data = [values[cond] for cond in conditions]
+        boxplot(data, conditions, prop, 'condition', show, fig)
+        # plt.boxplot(data, labels = conditions, showmeans = True, meanline = False)
+        # show_plot(show)
+
+    def boxplot_vs_run(self, prop, show=None, fig=None):
+        data, _ = self.data_vs_run(prop)
+        conditions = EcoSonic_VP.condition_order_from_vp_id(1)
+        data = [data[cond] for cond in conditions]
+        group_boxplot(data, [condition2color(c) for c in conditions], conditions, ylabel=prop, xlabel = 'run', show=show, fig=fig)
+
+    def data_matrix(self, prop):
+        conditions = default_condition_order[:]
+        values = []
+        for log in self.all_logs():
+            val = get_class_value(log, prop)
+            if val is not None:
+                values.append((log.condition, log.condition_rank, val))
+
+        data = np.ndarray((4,4))
+        for i,cond in enumerate(conditions):
+            for j in range(3):
+                data[i,j] = np.mean([val for condition, rank, val in values if condition == cond and rank == j+1])
+            data[i,3] = np.mean([val for condition, _, val in values if condition == cond])
+        for j in range(3):
+            data[3,j] = np.mean([val for _, rank, val in values if rank == j+1])
+        data[3,3] = np.mean([val for _,_,val in values])
+
+        t = PrettyTable(['', '1', '2', '3', 'M'])
+        conditions += ['M']
+        for i, row in enumerate(data):
+            t.add_row([conditions[i]]+list(row))
+        t.float_format = ".3"
+        print(t)
+
+    def prop_inspection(self, prop):
+        self.data_matrix(prop)
+        for v in self.ttest_multiple([prop], 2):
+            print(v)
+        # plt.figure().canvas.set_window_title(prop)
+        f, ax = plt.subplots(2,2)
+        ax = ax.flatten()
+        self.boxplot_all(prop, fig=ax[0])
+        self.boxplot_vs_run(prop, fig=ax[1])
+        self.plot_avg_vs_run(prop, fig=ax[2], global_run_counter=True)
+        self.plot_avg_vs_run(prop, fig=ax[3])
+        show_plot()
+
+
 ###################################################
 #profiler.switch_to('load cache')
 #lazy_cached_property.load_cache()
 profiler.switch_to('preprocessing')
-all = EcoSonic_All(jens=True)
+plots.set_profiler(profiler)
+all = EcoSonic_All(jens=False)
 all.gather_events()
-with profiler.auto('sanity_check', False):
-    all.sanity_check()
+# with profiler.auto('sanity_check', False):
+#     all.sanity_check()
 logs = all.all_logs()
 
 profiler.switch_to('main')
+
+### data matrix ###
+# all.data_matrix('consumption')
+
+### box plot vs run ###
+# all.boxplot_vs_run('consumption', show=True)
+
+### "global" boxplot ###
+# all.boxplot_all('consumption')
+
 
 ### gear probability ###
 # all.plot_gear_probability()
 
 ### eye tracking ###
-#print(all.ttest_eye_tracking())
+# print(all.ttest_eye_tracking())
 
 ### basic tests ###
 # all.plot_avg_vs_run('eye_tracking_simple_attention_ratio', filter=lambda log: log.valid_eye_tracking_data)
@@ -596,14 +660,17 @@ profiler.switch_to('main')
 #     log = random.choice(logs)
 #     #print(log.condition, ':', log.steering_integral)
 #     #print(log.scripted_steering)
-#     log.show_steering()
+# #     log.show_steering()
 # for i in [3,4,5,6,7,8]:
 #     EcoSonic_log.max_steering_reaction_time = i
 #     all.plot_avg_vs_run('avg_steering_reaction_time')
 
 ### ttest per run ###
-# print(all.ttest_per_run('consumption'))
-# all.plot_avg_vs_run('consumption')
+# print(all.ttest_per_run('elapsed_time'))
+# print(all.ttest_all('elapsed_time'))
+# all.plot_avg_vs_run('elapsed_time')
+
+#TODO: lern-kapazität
 
 ### ttest all ###
 # for prop in ['eye_tracking_simple_attention_ratio']:
@@ -611,18 +678,36 @@ profiler.switch_to('main')
 #     all.plot_avg_vs_run(prop)
 
 ### multiple ttests ###
-# print(all.ttest_multiple(['num_events', 'num_too_slow', 'num_stop_sign', 'num_traffic_light']))
+# print(all.ttest_multiple(['num_events', 'num_too_slow', 'num_stop_sign', 'num_traffic_light', 'num_speeding']))
 # print(all.ttest_multiple(['eye_tracking_simple_attention_ratio']))
 # all.plot_avg_vs_run('eye_tracking_simple_attention_ratio')
+
+props = []
+props.extend(['steering_integral', 'avg_steering_reaction_time'])
+props.extend(['num_events', 'num_too_slow', 'num_stop_sign', 'num_traffic_light', 'num_speeding'])
+props.extend(['elapsed_time', 'consumption', 'eye_tracking_simple_attention_ratio', 'normalized_consumption'])
+
+#all.ttest_multiple_visual(props)
+
+# for prop in props:
+#     all.prop_inspection(prop)
+all.prop_inspection('elapsed_time')
 
 ###################################################
 
 # show_scatter(all.scatter_gather, EcoSonic_log.scatter_steering_integral_vs_run)
 #show_scatter(all.scatter_gather, EcoSonic_log.scatter_consumption_vs_lap_time)
-
-#show_scatter_old(all.scatter_gather, EcoSonic_log.scatter_consumption_vs_run, False)
 # plt.figure(2)
-# all.show_scatter_all_vs_run('consumption')
+
+#prop = 'avg_rpm'
+# all.data_matrix(prop)
+# all.boxplot_all(prop)
+# plt.figure(1)
+# all.boxplot_vs_run(prop, False)
+# plt.figure(2)
+# all.plot_avg_vs_run(prop, show = False, global_run_counter=True)
+# plt.figure(3)
+# all.plot_avg_vs_run(prop)
 
 
 ###################################################
