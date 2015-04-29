@@ -3,29 +3,82 @@ import numpy as np
 from scipy.stats import ttest_ind, mannwhitneyu, spearmanr, wilcoxon, pearsonr, kstest #f_oneway
 from matplotlib.mlab import normpdf
 from itertools import permutations, product, combinations
+#from collections import defaultdict
 import matplotlib.pyplot as plt
 from SurveyData import SurveyFile
-from misc import show_dependency_matrix, correct_pvalues_for_multiple_testing
+from misc import show_dependency_matrix, correct_pvalues_for_multiple_testing, all_identical, all_identical2
 
 default_condition_order = ['VIS', 'SLP', 'CNT']
 
 ### utility functions ###
 
 class Result(object):
-    def __init__(self, scale, cond1, cond2, p_ttest, p_utest, cronb1, cronb2, t):
+    def __init__(self, scale, cond1, cond2, p_ttest, p_utest, cronb1, cronb2, t, p_wtest=None):
         self.scale, self.cond1, self.cond2 = scale, cond1, cond2
         self.p_ttest, self.p_utest, self.cronb1, self.cronb2 = p_ttest, p_utest, cronb1, cronb2
+        self.p_wtest = p_wtest
         if t < 0:
             self.cond1, self.cond2 = self.cond2, self.cond1
             self.cronb1, self.cronb2 = self.cronb2, self.cronb1
     def __str__(self):
-        return "{0} ({1},{2}): utest: {3}{4:.3f} ttest: {5}{6:.3f} | {7}cronbach ({1}): {8:.3f}, {9}cronbach ({2}): {10:.3f}".format(
+        wtest = " wtest: {}{:.3f}".format('* ' if self.p_wtest < 0.05 else '  ', self.p_wtest) if self.p_wtest is not None else ""
+        return "{0} ({1},{2}): utest: {3}{4:.3f} ttest: {5}{6:.3f}{7} | {8}cronbach ({1}): {9:.3f}, {10}cronbach ({2}): {11:.3f}".format(
             self.scale, self.cond1, self.cond2, '* ' if self.p_utest < 0.05 else '  ', self.p_utest,
-                                                '* ' if self.p_ttest < 0.05 else '  ', self.p_ttest,
+                                                '* ' if self.p_ttest < 0.05 else '  ', self.p_ttest, wtest,
             '! ' if self.cronb1 < 0.8 else '  ', self.cronb1,
             '! ' if self.cronb2 < 0.8 else '  ', self.cronb2)
 
 ### main functions ###
+
+# data: possible scales (ScaleData), dict'd by condition
+# relaxed
+def get_conservative_combinations(data, relaxed=False):
+    return [c for c in product(data['VIS'], data['SLP'], data['CNT'])
+                if all_identical(len(s) for s in c)
+                and (True if relaxed else all_identical2([s.ques_sig for s in c]))]
+    # [(i.ques_ids, i.ques_sig) for i in np.array(combs).flatten()]
+
+# http://en.wikipedia.org/wiki/Wilcoxon_signed-rank_test
+def wilcoxon_results(survey_file, correct_pvalues=True):
+    all_data = survey_file.all_data_full
+    for scale, data in sorted(all_data.items()):
+        #print(scale, len(get_conservative_combinations(data)), len(get_conservative_combinations(data, True)))
+        results = {} # ordered by condition-pairs
+        for comb in get_conservative_combinations(data): # these are the scale combinations (composition)
+            for cond1,cond2 in combinations(comb,2): # these are the pairwise comparisons of scales
+                d1,d2 = zip(*(i for i in zip(cond1.data_full,cond2.data_full) if not -1 in i)) # weed out NONEs (-1)
+                _,p_w = wilcoxon(d1, d2)
+                t,p_t = ttest_ind(d1, d2)
+                _,p_u = mannwhitneyu(d1, d2)
+                results.setdefault((cond1.cond, cond2.cond), []).append(
+                    Result(scale, cond1.cond, cond2.cond, p_t/2, p_u, cond1.cronbach, cond2.cronbach, t, p_w/2))
+        assert len(results) == 3
+        scale_results = [min(comb_r, key=lambda x:x.p_wtest)
+                            for comb_r in results.values()] # best result for each combination
+        if correct_pvalues:
+            correct_results_pvalues(scale_results)
+        for r in sorted(scale_results, key=lambda x:x.p_wtest):
+            print(r)
+
+        # for comb_r in results.values():
+        #     min(comb_r, key = lambda x:x.p_wtest)
+        #     print(comb)
+        #     for r in comb_r:
+        #         print(r.cond1.cond,r.cond2.cond)
+
+
+def correct_results_pvalues(results):
+    assert len(results) == 3
+    pprops = ['p_ttest', 'p_utest', 'p_wtest']
+    pvalues_corrected = [correct_pvalues_for_multiple_testing(
+                            [getattr(r,a) for r in results]) for a in pprops]
+    # p_ttest_corrected, p_utest_corrected =
+    for i,r in enumerate(results):
+        for j,prop in enumerate(pprops):
+            setattr(r, prop, pvalues_corrected[j][i])
+        # r.p_ttest = p_ttest_corrected[i]
+        # r.p_utest = p_utest_corrected[i]
+
 
 def print_significant_results(survey_file, correct_pvalues=True):
     all_data = survey_file.all_data_full
@@ -44,18 +97,15 @@ def print_significant_results(survey_file, correct_pvalues=True):
                 tmp_results += [Result(scale, cond1, cond2, p/2, p_u, d1.cronbach, d2.cronbach, t)]
             # assert len(tmp_results) == 0 or len(tmp_results) == len(list(product(data[cond1], data[cond2])))
             # anova += [f_oneway(list(data.values()))]
-            if len(tmp_results) == 0:
-                print('WARNING! NO RESULTS FOR:', scale, cond1, cond2)
-                continue
-            tmp_results.sort(key = lambda x:x.p_utest)
-            results += [tmp_results[0]]
+            assert len(tmp_results) > 0
+            # if len(tmp_results) == 0:
+            #     print('WARNING! NO RESULTS FOR:', scale, cond1, cond2)
+            #     continue
+            #tmp_results.sort(key = lambda x:x.p_utest)
+            results += [min(tmp_results, key = lambda x:x.p_utest)]
 
         if correct_pvalues:
-            p_ttest_corrected, p_utest_corrected = [correct_pvalues_for_multiple_testing(
-                                                    [getattr(r,a) for r in results]) for a in ['p_ttest', 'p_utest']]
-            for i,r in enumerate(results):
-                r.p_ttest = p_ttest_corrected[i]
-                r.p_utest = p_utest_corrected[i]
+            correct_results_pvalues(results)
         results.sort(key = lambda x:x.p_utest)
         # results = [x for x in results if x.cond1 == 'VIS' or x.cond2 == 'VIS']
         for r in results:
@@ -188,9 +238,11 @@ def dependency_mat_person(survey_file, corr_function=spearmanr, specific=None, s
 
 survey_file = SurveyFile()
 
+wilcoxon_results(survey_file)
+
 # output significant results ##
 # print('\n# significant results')
-print_significant_results(survey_file)
+# print_significant_results(survey_file)
 
 ### dependency mat for design dimensions and design goals ###
 

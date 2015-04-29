@@ -43,9 +43,23 @@ class ScaleData(object):
             self.mean_diff = np.mean(self.diffs)
         else:
             self.cronbach = 1
+    def __len__(self):
+        return len(self.items)
+    @property
+    def ques_sig(self):
+        normal_questions, comparative_questions = [],[]
+        for i in self.ques_ids:
+            if i.startswith('E'):
+                comparative_questions.append((int(i[1:])-1)//3)
+            else:
+                normal_questions.append(int(i[1:]))
+        return (sorted(normal_questions),sorted(comparative_questions))
     @property
     def data(self): return [i for l in self.items   # flatten
                                 for i in l if i != -1] # weed out -1
+    @property
+    def data_full(self): return [i for l in self.items
+                                    for i in l]
     @property
     def mean(self):
         def avg(i):

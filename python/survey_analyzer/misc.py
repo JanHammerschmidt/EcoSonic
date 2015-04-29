@@ -1,8 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def all_identical(list):
-    return len(set(list)) <= 1
+# must be hashable
+def all_identical(it):
+    return len(set(it)) <= 1
+
+# must be a list
+def all_identical2(list):
+    return list.count(list[0]) == len(list)
 
 def show_dependency_matrix(mat, row_labels, col_labels, show = True):
     #print(mat)
@@ -44,6 +49,8 @@ def correct_pvalues_for_multiple_testing(pvalues, correction_type = "Benjamini-H
     """
     consistent with R - print correct_pvalues_for_multiple_testing([0.0, 0.01, 0.029, 0.03, 0.031, 0.05, 0.069, 0.07, 0.071, 0.09, 0.1])
     """
+    if None in pvalues:
+        return pvalues
     from numpy import array, empty
     pvalues = array(pvalues)
     n = float(pvalues.shape[0])
