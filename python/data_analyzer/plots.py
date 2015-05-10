@@ -3,7 +3,7 @@ __author__ = 'jhammers'
 import matplotlib.pyplot as plt
 import numpy as np
 from timer import ProfilerDummy
-from data_analyzer.misc import get_class_value
+from misc import get_class_value
 
 boxplot_bootstrap=5000
 boxplot_whiskers = [5,95]
