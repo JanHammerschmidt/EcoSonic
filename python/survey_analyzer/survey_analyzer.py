@@ -1,22 +1,27 @@
 from distutils.command.check import check
 import numpy as np
-from scipy.stats import ttest_ind, mannwhitneyu, spearmanr, wilcoxon, pearsonr, kstest, friedmanchisquare #f_oneway
+from scipy.stats import ttest_ind, mannwhitneyu, spearmanr, wilcoxon, pearsonr, kstest, friedmanchisquare, kendalltau #f_oneway
 from matplotlib.mlab import normpdf
 from itertools import permutations, product, combinations
 #from collections import defaultdict
 import matplotlib.pyplot as plt
 from SurveyData import SurveyFile
 from misc import show_dependency_matrix, correct_pvalues_for_multiple_testing, all_identical, all_identical2
+import sys, os
+sys.path.append(os.path.abspath(os.path.join('..')))
+sys.path.append(os.path.abspath(os.path.join('..', 'data_analyzer')))
+import data_analyzer.plots as plots
 
 default_condition_order = ['VIS', 'SLP', 'CNT']
 
 ### utility functions ###
 
 class Result(object):
-    def __init__(self, scale, scale_data1, scale_data2, p_ttest, p_utest, cronb1, cronb2, t, p_wtest=None):
+    def __init__(self, scale, scale_data1, scale_data2, p_ttest, p_utest, cronb1, cronb2, t, p_wtest=None, combination=None):
         self.scale, self.scale_data1, self.scale_data2 = scale, scale_data1, scale_data2
         self.p_ttest, self.p_utest, self.cronb1, self.cronb2 = p_ttest, p_utest, cronb1, cronb2
         self.p_wtest = p_wtest
+        self.combination = combination # (initial) combination of all conditions
         if t < 0:
             self.scale_data1, self.scale_data2 = self.scale_data2, self.scale_data1
             self.cronb1, self.cronb2 = self.cronb2, self.cronb1
@@ -46,27 +51,55 @@ def get_conservative_combinations(data, relaxed=False):
 # http://en.wikipedia.org/wiki/Wilcoxon_signed-rank_test
 def wilcoxon_results(survey_file, correct_pvalues=True):
     all_data = survey_file.all_data_full
+    plot_data = {}
     for scale, data in sorted(all_data.items()):
         #print(scale, len(get_conservative_combinations(data)), len(get_conservative_combinations(data, True)))
         results = {} # ordered by condition-pairs
         for comb in get_conservative_combinations(data): # these are the scale combinations (composition)
             friedman, p_friedman = friedmanchisquare(*zip(*(i for i in zip(*[c.data_full for c in comb]) if not -1 in i)))
             if p_friedman > 0.05:
-                print("WARNING: friedman p-value too low!", scale, [i.ques_ids for i in comb], p_friedman)
+                print("WARNING: friedman p-value too low! for", scale, [i.ques_ids for i in comb], p_friedman)
             for cond1,cond2 in combinations(comb,2): # these are the pairwise comparisons of scales
                 d1,d2 = zip(*(i for i in zip(cond1.data_full,cond2.data_full) if not -1 in i)) # weed out NONEs (-1)
                 _,p_w = wilcoxon(d1, d2)
                 t,p_t = ttest_ind(d1, d2)
                 _,p_u = mannwhitneyu(d1, d2)
                 results.setdefault((cond1.cond, cond2.cond), []).append(
-                    Result(scale, cond1, cond2, p_t/2, p_u, cond1.cronbach, cond2.cronbach, t, p_w/2))
+                    Result(scale, cond1, cond2, p_t/2, p_u, cond1.cronbach, cond2.cronbach, t, p_w/2, comb))
         assert len(results) == 3
         scale_results = [min(comb_r, key=lambda x:x.p_wtest)
                             for comb_r in results.values()] # best result for each combination
         if correct_pvalues:
             correct_results_pvalues(scale_results)
+        scale_data = None #[] # set()
+        vis_slp = {'VIS','SLP'}
         for r in sorted(scale_results, key=lambda x:x.p_wtest):
-                print(r)
+            if {r.cond1,r.cond2} == vis_slp:
+                scale_data = r.combination
+            print(r)
+        assert scale_data is not None
+        plt_data = []
+        for cond in default_condition_order:
+            s = next(d for d in scale_data if d.cond == cond)
+            plt_data.append(s.data)
+        plot_data[scale] = plt_data
+
+    # plot boxplots
+    f,ax = plt.subplots(3,3)
+    ax = ax.flatten()
+    # plots.boxplot_whiskers = [40,60]
+    plots.boxplot_notch = True
+    plots.boxplot_bootstrap = None
+    plots.boxplot_show_means = False
+    for i, (scale, data) in enumerate(sorted(plot_data.items())):
+        if True:
+            plots.boxplot(data, default_condition_order, scale, ylim=[0,8], fig=ax[i])
+        else:
+            plt.boxplot(data, labels=default_condition_order, showmeans=True, showfliers=True)
+            print([(cond, np.std(data[i])) for i,cond in enumerate(default_condition_order)])
+            plt.ylim([0,8])
+            plt.show()
+    plots.show_plot()
 
         # for comb_r in results.values():
         #     min(comb_r, key = lambda x:x.p_wtest)
@@ -152,6 +185,7 @@ def dependency_mat(survey_file, corr_function = spearmanr, specific=None, show=T
             all_f_data[scale] = survey_file.get_combined_scale_data(all_data[scale], specific)
 
     mat = np.zeros((len(scales_rows),len(scales_cols)))
+    p_mat = np.copy(mat)
     corr,cache = [],{}
     for i, scale in enumerate(scales_rows): #rows
         f_data = all_f_data[scale]
@@ -160,7 +194,7 @@ def dependency_mat(survey_file, corr_function = spearmanr, specific=None, show=T
                 mat[i,j] = 1
                 continue
             try:
-                mat[i,j] = cache[(scale,scale2)]
+                mat[i,j], p_mat[i,j] = cache[(scale,scale2)][:2]
             except KeyError:
                 f_data2 = all_f_data[scale2]
                 corr_cur = []
@@ -172,9 +206,11 @@ def dependency_mat(survey_file, corr_function = spearmanr, specific=None, show=T
                 max_corr = max(corr_cur, key=lambda c:abs(c[0]))
                 # check_for_normality(max_corr[-2],True)
                 # check_for_normality(max_corr[-1], True)
-                mat[i,j] = cache[(scale,scale2)] = cache[(scale2,scale)] = max_corr[0]
-                #assert mat[i,j] == min(corr_cur, key=lambda c:c[1])[0]
+                mat[i,j], p_mat[i,j] = max_corr[0], max_corr[1]
                 corr += [max_corr]
+                cache[(scale,scale2)] = cache[(scale2,scale)] = max_corr
+
+                #assert mat[i,j] == min(corr_cur, key=lambda c:c[1])[0]
                 # if (scale2,scale) in cache:
                 #     assert mat[i,j] == cache[(scale2,scale)]
 
@@ -182,7 +218,7 @@ def dependency_mat(survey_file, corr_function = spearmanr, specific=None, show=T
     for c in corr:
         print(c[4],c[5],c[0],c[1])
 
-    show_dependency_matrix(mat, scales_rows, scales_cols, False)
+    show_dependency_matrix(mat, scales_rows, scales_cols, False, p_mat=p_mat)
     plt.gcf().canvas.set_window_title('All conditions' if specific is None else specific)
     if show:
         plt.show()
@@ -216,13 +252,14 @@ def dependency_mat_person(survey_file, corr_function=spearmanr, specific=None, s
     person_data = [survey_file.get_person_data(i) for i in range(len(person_questions))]
 
     mat = np.zeros((len(scales),len(person_questions)))
+    p_mat = np.copy(mat)
     corr,cache = [],{}
     for i, scale in enumerate(scales): #rows
         f_data = all_f_data[scale]
         for j,p_data in enumerate(person_data): #columns
             person_question = person_questions[j]
             try:
-                mat[i,j] = cache[(scale,person_question)]
+                mat[i,j], p_mat[i,j] = cache[(scale,person_question)][:2]
             except KeyError:
                 corr_cur = []
                 for d1 in f_data:
@@ -231,12 +268,14 @@ def dependency_mat_person(survey_file, corr_function=spearmanr, specific=None, s
                     r,p = corr_function(d1,d2)
                     corr_cur += [(r,p,d1,d2,scale,person_question)]
                 max_corr = max(corr_cur, key=lambda c:abs(c[0]))
-                mat[i,j] = cache[(scale,person_question)] = cache[(person_question,scale)] = max_corr[0]
+                mat[i,j], p_mat[i,j] = max_corr[0], max_corr[1]
+                cache[(scale,person_question)] = cache[(person_question,scale)] = max_corr
+                # corr += [max_corr]
+
                 #assert mat[i,j] == min(corr_cur, key=lambda c:c[1])[0]
-                corr += [max_corr]
                 # if (scale2,scale) in cache:
                 #     assert mat[i,j] == cache[(scale2,scale)]
-    show_dependency_matrix(mat, scales, person_questions, False)
+    show_dependency_matrix(mat, scales, person_questions, False, p_mat=p_mat)
     plt.gcf().canvas.set_window_title('All conditions' if specific is None else specific)
     if show:
         plt.show()
@@ -246,7 +285,7 @@ def dependency_mat_person(survey_file, corr_function=spearmanr, specific=None, s
 
 survey_file = SurveyFile()
 
-wilcoxon_results(survey_file)
+# wilcoxon_results(survey_file)
 
 # output significant results ##
 # print('\n# significant results')
@@ -255,7 +294,7 @@ wilcoxon_results(survey_file)
 ### dependency mat for design dimensions and design goals ###
 
 # dependency_mat_all(survey_file)
-# dependency_mat(survey_file, specific=None, full_data=False)
+dependency_mat(survey_file, specific=None, full_data=False) #, corr_function=kendalltau)
 #
 ### dependency mat for person data ###
 # dependency_mat_person(survey_file)

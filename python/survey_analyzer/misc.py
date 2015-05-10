@@ -9,7 +9,7 @@ def all_identical(it):
 def all_identical2(list):
     return list.count(list[0]) == len(list)
 
-def show_dependency_matrix(mat, row_labels, col_labels, show = True):
+def show_dependency_matrix(mat, row_labels, col_labels, show = True, p_mat = None):
     #print(mat)
     im = plt.matshow(mat,cmap=plt.cm.seismic, vmin = -1, vmax = 1)
     nrows, ncols = len(row_labels), len(col_labels)
@@ -21,6 +21,8 @@ def show_dependency_matrix(mat, row_labels, col_labels, show = True):
     for i, (x_val, y_val) in enumerate(zip(x.flatten(), y.flatten())):
         row, col = i // ncols, i % ncols
         c = "{:.3f}".format(mat[row,col])
+        if p_mat is not None:
+            c = c + "\n(p = {:.3f})".format(p_mat[row,col])
         plt.text(x_val, y_val, c, va='center', ha='center')
     if show:
         plt.show()

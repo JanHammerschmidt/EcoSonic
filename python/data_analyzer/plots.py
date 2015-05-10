@@ -3,11 +3,13 @@ __author__ = 'jhammers'
 import matplotlib.pyplot as plt
 import numpy as np
 from timer import ProfilerDummy
-from misc import get_class_value
+from data_analyzer.misc import get_class_value
 
 boxplot_bootstrap=5000
 boxplot_whiskers = [5,95]
 boxplot_showfliers = False
+boxplot_notch = True
+boxplot_show_means = True
 
 ###########################
 profiler = ProfilerDummy()
@@ -79,10 +81,12 @@ def plot(xval, yval, colors, ylabel='', xlabel='', show=None, fig=None):
     _set_labels(ylabel, xlabel, fig, plot)
     plot.plot(xval, yval, c=colors)
 
-def boxplot(data, labels, ylabel = '', xlabel = '', show = None, fig = None):
+def boxplot(data, labels, ylabel = '', xlabel = '', show = None, fig = None, ylim=None):
     show, plot = _get_params(show, fig)
     _set_labels(ylabel, xlabel, fig, plot)
-    plot.boxplot(data, labels=labels, showmeans=True, whis=boxplot_whiskers, notch=True, bootstrap=boxplot_bootstrap, showfliers=boxplot_showfliers)
+    plot.boxplot(data, labels=labels, showmeans=boxplot_show_means, whis=boxplot_whiskers, notch=boxplot_notch, bootstrap=boxplot_bootstrap, showfliers=boxplot_showfliers)
+    if ylim is not None:
+        plot.ylim(ylim) if fig is None else fig.set_ylim(ylim)
     show_plot(show)
 
 # data: vector (for each condition) of vector (for each x-pos) of data items

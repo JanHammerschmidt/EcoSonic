@@ -13,7 +13,7 @@ scales = {'Affectiveness': [7,19],
           'Unobtrusiveness': ([-4,-14],[-5]),
           'Persuasiveness': ([3,11,12],[3]),
           'Understandability': [2,17], ## 17: den aktuellen level des verbrauchs kann man bei SLP auch eigentlich gar nicht einschätzen!
-          'Akzeptanz / Integration into daily life': ([-6,13,18],[-4]),
+          'Akzeptanz / Integration into daily life': ([-6,13,18],[4]),
           'Hilfreich': ([5,15],[1,6]),
           'Aufmerksamkeit / Überforderung': [9,16],
           'Subjektive Selbst-Einschätzung': [20] }
