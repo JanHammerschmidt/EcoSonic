@@ -315,7 +315,7 @@ void MainWindow::on_intro_run_stateChanged(int checked)
         ui->car_viz->set_condition_order(ui->vp_id->value() % 1000);
     } else {
         ui->car_viz->stop();
-        ui->car_viz->track.load(QDir::homePath()+"/EcoSonic/intro_track.bin");
+        ui->car_viz->track.load("intro_track.bin");
         ui->car_viz->update_track_path(ui->car_viz->height());
         ui->car_viz->reset();
         ui->car_viz->set_sound_modus(0);

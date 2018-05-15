@@ -245,9 +245,9 @@ struct Track {
     };
     static Images images;
 
-    inline bool save(const QString filename = QDir::homePath()+"/EcoSonic/track.bin") const { return misc::saveObj(filename, *this); }
-    inline bool saveJSON(const QString filename = QDir::homePath()+"/EcoSonic/track.json") const { return misc::saveJson(filename, *this, false); }
-    inline bool load(const QString filename = QDir::homePath()+"/EcoSonic/track.bin") { return misc::loadObj(filename, *this); }
+    inline bool save(const QString filename = "track.bin") const { return misc::saveObj(filename, *this); }
+    inline bool saveJSON(const QString filename = "track.json") const { return misc::saveJson(filename, *this, false); }
+    inline bool load(const QString filename = "track.bin") { return misc::loadObj(filename, *this); }
     void get_path(QPainterPath& path, const qreal height) const {
         if (!points.size())
             return;
