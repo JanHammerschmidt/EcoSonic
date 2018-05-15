@@ -9,7 +9,7 @@
 #include "misc.h"
 
 #define LOG_VERSION "1.8"
-#define LOG_VERSION_JSON "1.1"
+#define LOG_VERSION_JSON "1.2"
 
 struct LogItem
 {
@@ -36,7 +36,8 @@ struct LogItemJson : public LogItem
         j["throttle"] = throttle;
         j["braking"] = braking;
         j["gear"] = gear;
-        //j["eye_tracker_point"] = !!
+        j["eye_tracker_point_x"] = eye_tracker_point.x();
+        j["eye_tracker_point_y"] = eye_tracker_point.y();
         j["dt"] = dt;
         j["speed"] = speed;
         j["position"] = position;
@@ -130,6 +131,10 @@ struct Log
         j["elapsed_time"] = elapsed_time;
         j["liters_used"] = liters_used;
         j["vp_id"] = vp_id;
+        if (has_window_size) {
+            j["window_size_width"] = window_size.width();
+            j["window_size_height"] = window_size.height();
+        }
         QJsonArray jitems;
         for (auto i : items_json) {
             QJsonObject ji;

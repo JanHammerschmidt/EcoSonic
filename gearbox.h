@@ -56,7 +56,7 @@ public:
     }
 
     void update_engine_speed(Engine& engine, qreal speed, qreal dt) {
-        if (!clutch.acting() && clutch.engage) { // clutch is fully engaged
+        if (clutch.engage && !clutch.acting()) { // clutch is fully engaged
             engine.set_rpm(speed2engine_rpm(speed));
         } else {
             const double delta_w = (engine.torque_out - engine.torque_counter) / engine.inertia;
@@ -178,9 +178,9 @@ public:
     //void engine_idle() { gear = 0; clutch = 0; }
 
     // returns [kW], torque [N*m], rpm [s^-1]
-    static inline qreal torque2power(qreal const torque, qreal const rpm) {
-        return (2 * M_PI * (rpm / 60) * torque) / 1000;
-    }
+//    static inline qreal torque2power(qreal const torque, qreal const rpm) {
+//        return (2 * M_PI * (rpm / 60) * torque) / 1000;
+//    }
 
     // speed is [m/s]
     static inline qreal speed2kmh(qreal const speed) {

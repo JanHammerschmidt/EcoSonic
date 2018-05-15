@@ -16,7 +16,7 @@ TEMPLATE = app
 
 LIBS += -framework IOKit
 LIBS += -framework CoreFoundation
-LIBS += -L/Users/jhammers/boost_1_57_0/stage/lib -lboost_thread -lboost_system
+LIBS += -L/usr/local/Cellar/boost/1.67.0_1/lib -lboost_thread-mt -lboost_system-mt
 LIBS += -L$$PWD/lib/quazip/release -lquazip -lz
 
 #DEFINES += CAR_VIZ_FINAL_STUDY
@@ -31,7 +31,7 @@ INCLUDEPATH += . \
     ./lib/HID \
     ./lib/eyetribe/include \
     ./lib/quazip/quazip \
-    /Users/jhammers/boost_1_57_0
+    /usr/local/Cellar/boost/1.67.0_1/include
 
 CONFIG += c++11 precompile_header
 PRECOMPILED_HEADER = stdafx.h

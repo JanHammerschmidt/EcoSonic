@@ -177,6 +177,8 @@ void QCarViz::start()
     if (end_of_run_messagebox_ != nullptr)
         end_of_run_messagebox_->close();
 
+    qDebug() << "track path length" << track_path.length();
+
     if (current_pos >= track_path.length()) {
         if (!replay) {
             const int run = run_->value();
@@ -233,6 +235,8 @@ bool QCarViz::load_log(const QString filename, const bool start) {
         qDebug() << "log: deciliters_used:" << log->liters_used * 10;
 //        printf("log: items: %i\n", log->items.size());
         prepare_track();
+        track.saveJSON();
+        track.save();
         replay = true;
         replay_index = 0;
         track_started = true;
@@ -540,7 +544,9 @@ void QCarViz::draw(QPainter& painter)
 
 #ifndef CAR_VIZ_FINAL_STUDY
     //draw the current speed limit / current_pos / time elapsed
-    QString number; number.sprintf("%04.1f", time_elapsed());
+    QString number;
+    //number.sprintf("%04.1f", time_elapsed());
+    number.sprintf("%04.1f", car->current_single_resistance);
     painter.setFont(QFont{"Eurostile", 18, QFont::Bold});
     QPointF p = {300,300};
     if (track_started)
@@ -798,11 +804,18 @@ void QCarViz::draw(QPainter& painter)
     text_hint.draw(painter, QPointF(0.5*width(), 50));
 
     if (show_eye_tracker_point) {
-            //eye_tracker_point = QCursor::pos();
-            //globalToLocalCoordinates(eye_tracker_point);
+            eye_tracker_point = QCursor::pos();
+            globalToLocalCoordinates(eye_tracker_point);
         painter.setTransform(QTransform());
         painter.setBrush(Qt::NoBrush);
         painter.setPen(Qt::black);
         painter.drawEllipse(eye_tracker_point, 10, 10);
+
+        QString number; number.sprintf("x: %.1f | y: %.1f", eye_tracker_point.x(), eye_tracker_point.y());
+        painter.setFont(QFont{"Eurostile", 18, QFont::Bold});
+        QPointF p = {400,30};
+        painter.drawText(p, number);
+
+        painter.drawLine(0, 544, 1710, 544);
     }
 }

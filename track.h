@@ -246,8 +246,9 @@ struct Track {
     static Images images;
 
     inline bool save(const QString filename = QDir::homePath()+"/EcoSonic/track.bin") const { return misc::saveObj(filename, *this); }
+    inline bool saveJSON(const QString filename = QDir::homePath()+"/EcoSonic/track.json") const { return misc::saveJson(filename, *this, false); }
     inline bool load(const QString filename = QDir::homePath()+"/EcoSonic/track.bin") { return misc::loadObj(filename, *this); }
-    void get_path(QPainterPath& path, const qreal height) {
+    void get_path(QPainterPath& path, const qreal height) const {
         if (!points.size())
             return;
         const qreal h = height;
@@ -276,6 +277,46 @@ struct Track {
     // inverse transform
     static inline QPointF tf_1(const QPointF& p, const qreal height) {
         return tf(p, height);
+    }
+    void write(QJsonObject& j) const {
+        j["width"] = width;
+        QJsonArray jpoints;
+        for (auto i : points) {
+            QJsonObject ji;
+            ji["x"] = i.x();
+            ji["y"] = i.y();
+            jpoints.append(ji);
+        }
+        j["points"] = jpoints;
+
+
+        QPainterPath path;
+        get_path(path, 200);
+        QJsonArray jsigns;
+        for (auto i : signs) {
+            QJsonObject ji;
+            ji["type"] = (int) i.type;
+            ji["at_length"] = i.at_length;
+            qreal const percent = path.percentAtLength(i.at_length);
+            ji["percent"] = percent;
+            QJsonObject jp;
+            QPointF const p = path.pointAtPercent(percent);
+            jp["x"] = p.x(); jp["y"] = p.y();
+            ji["point"] = jp;
+            if (i.type == Track::Sign::TrafficLight) {
+                Track::Sign::TrafficLightInfo& ti = i.traffic_light_info;
+                ji["time_range_from"] = ti.time_range.first;
+                ji["time_range_to"] = ti.time_range.first;
+                ji["trigger_distance"] = ti.trigger_distance;
+                ji["trigger_distance_percent"] = path.percentAtLength(ti.trigger_distance);
+            } else if (i.type >= Track::Sign::TurnLeft) {
+                Track::Sign::SteeringInfo& si = i.steering_info;
+                ji["intensity"] = si.intensity;
+                ji["duration"] = si.duration;
+            }
+            jsigns.append(ji);
+        }
+        j["signs"] = jsigns;
     }
 };
 

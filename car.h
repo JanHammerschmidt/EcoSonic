@@ -50,7 +50,8 @@ public:
     qreal rolling_resistance_coefficient;
 
     qreal current_accumulated_resistance;
-    qreal current_wheel_force;
+    qreal current_single_resistance;
+    //qreal current_wheel_force;
     qreal current_acceleration;
 
     Engine engine;

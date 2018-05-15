@@ -174,10 +174,10 @@ protected:
         }
         return false;
     }
-    qreal get_trigger_distance(Track::Sign *sign) {
+    qreal get_trigger_distance(Track::Sign *sign) override {
         return sign->traffic_light_info.trigger_distance;
     }
-    void trigger(Track::Sign * sign, const qreal) {
+    void trigger(Track::Sign * sign, const qreal) override {
         if (carViz.is_log_run())
             return;
         Q_ASSERT(sign->traffic_light_state == Track::Sign::Red);
@@ -194,7 +194,7 @@ protected:
         types.push_back(Track::Sign::TurnLeft);
         types.push_back(Track::Sign::TurnRight);
     }
-    bool tick_current_sign(const qreal t, const qreal dt) {
+    bool tick_current_sign(const qreal t, const qreal dt) override {
         const qreal tt = t - t0;
         if (tt > t_stages[stage]) {
             stage++;

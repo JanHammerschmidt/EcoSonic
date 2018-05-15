@@ -26,10 +26,13 @@ void Car::save_log(const bool intro_run, QDateTime& program_start_time) {
     log.reset();
 }
 
-qreal Car::tick(qreal const dt, qreal const alpha, bool const replay)
+qreal Car::tick(qreal dt, qreal const alpha, bool const replay)
 {
+    //dt = 0.017;
     if (dt <= 0)
         return 0;
+//    if (dt > 0.1)
+//        dt = 0.1;
 
     //logging
     if (log && !replay) {
@@ -41,14 +44,16 @@ qreal Car::tick(qreal const dt, qreal const alpha, bool const replay)
     gearbox.tick(dt);
     engine.update_torque(gearbox.gear_change() ? 0 : throttle);
     qreal F = gearbox.torque2force_engine2wheels(engine, speed, dt);
-    current_wheel_force = F;
+    //current_wheel_force = F;
 
     // get resisting forces
     qreal drag_resistance = resistances::drag(drag_resistance_coefficient, speed);
     qreal rolling_resistance = resistances::rolling(rolling_resistance_coefficient, alpha, mass);
     qreal uphill_resistance = resistances::uphill(mass, alpha);
+    current_single_resistance = drag_resistance;
     osc->send_float("/uphill_resistance", uphill_resistance);
     current_accumulated_resistance = drag_resistance + rolling_resistance + uphill_resistance;
+
     F -= current_accumulated_resistance;
     F -= braking * max_breaking_force; // breaking force
 

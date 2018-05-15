@@ -55,7 +55,7 @@ struct TorqueMap {
             return linear_interp(throttle, 0, torque_ramps[0].throttle, 0, torque_ramps[0].get_torque(rpm));
         if (throttle >= torque_ramps.last().throttle)
             return torque_ramps.last().get_torque(rpm);
-        for (int i = 0; i < torque_ramps.size(); i++)
+        for (int i = 1; i < torque_ramps.size(); i++)
             if (throttle <= torque_ramps[i].throttle) {
                 return linear_interp(throttle, torque_ramps[i-1].throttle, torque_ramps[i].throttle
                                              , torque_ramps[i-1].get_torque(rpm), torque_ramps[i].get_torque(rpm));
