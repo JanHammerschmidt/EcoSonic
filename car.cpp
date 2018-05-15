@@ -10,7 +10,7 @@ void Car::save_log(const bool intro_run, QDateTime& program_start_time) {
     //log->save(QDir::homePath()+"/EcoSonic/"+program_start_time.toString("yyyy-MM-dd_hh-mm")+"/"+QDateTime::currentDateTime().toString("mm-ss")+".log");
     QString filename;
     QTextStream f(&filename);
-    f << QDir::homePath()+"/EcoSonic/";
+    f << "logs/EcoSonic/";
     f << "VP" << log->vp_id << "/" << log->vp_id << "_";
     if (intro_run)
         f << "intro-run" << "_";

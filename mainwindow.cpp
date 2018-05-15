@@ -178,7 +178,7 @@ void MainWindow::on_tabWidget_currentChanged(int index)
 void MainWindow::on_actionOpen_Log_triggered()
 {
     ui->car_viz->stop(); //true);
-    QString filename = QFileDialog::getOpenFileName(this, "Open Log", QDir::homePath()+"/EcoSonic", "Log Files (*.log)");
+    QString filename = QFileDialog::getOpenFileName(this, "Open Log", "logs", "Log Files (*.log)");
     if (filename != "" && QFile(filename).exists()) {
         ui->car_viz->load_log(filename, true);
     } else {
@@ -208,7 +208,7 @@ void MainWindow::on_actionConvert_Log_triggered()
 {
     ui->car_viz->stop(); //true);
     qDebug() << "QfileDialog!";
-    QString filename = QFileDialog::getOpenFileName(this, "Convert Log", QDir::homePath()+"/EcoSonic", "Log Files (*.log)");
+    QString filename = QFileDialog::getOpenFileName(this, "Convert Log", "logs", "Log Files (*.log)");
     if (filename != "" && QFile(filename).exists()) {
         convert_log(filename, true);
     } else {
@@ -265,7 +265,7 @@ void MainWindow::convert_log_directory(const QDir& dir, bool const overwrite)
 void MainWindow::on_actionConvert_All_Logs_in_a_Directory_triggered()
 {
     ui->car_viz->stop(); //true);
-    QString directory = QFileDialog::getExistingDirectory(this, "Convert all Logs in this directory", QDir::homePath()+"/EcoSonic");
+    QString directory = QFileDialog::getExistingDirectory(this, "Convert all Logs in this directory", "logs");
     QDir dir(directory);
     if (directory != "" && dir.exists()) {
         bool const overwrite = QMessageBox::question(this, "EcoSonic", "Overwrite existing logs?", QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;
@@ -315,7 +315,7 @@ void MainWindow::on_intro_run_stateChanged(int checked)
         ui->car_viz->set_condition_order(ui->vp_id->value() % 1000);
     } else {
         ui->car_viz->stop();
-        ui->car_viz->track.load("intro_track.bin");
+        ui->car_viz->track.load("tracks/intro_track.bin");
         ui->car_viz->update_track_path(ui->car_viz->height());
         ui->car_viz->reset();
         ui->car_viz->set_sound_modus(0);
