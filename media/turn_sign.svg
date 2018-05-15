@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   version="1.0"
+   width="960"
+   height="960"
+   id="svg10804"
+   inkscape:version="0.48.5 r10040"
+   sodipodi:docname="turn_sign.svg">
+  <metadata
+     id="metadata3039">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1389"
+     inkscape:window-height="856"
+     id="namedview3037"
+     showgrid="false"
+     inkscape:zoom="0.67708333"
+     inkscape:cx="480"
+     inkscape:cy="480"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg10804" />
+  <defs
+     id="defs10806" />
+  <path
+     style="fill:#176fc1;fill-rule:nonzero;stroke:none"
+     clip-path="none"
+     d="M 480 0 C 214.9045 0 0 214.9045 0 480 C 0 745.0955 214.9045 960 480 960 C 745.0955 960 960 745.0955 960 480 C 960 214.9045 745.0955 0 480 0 z M 549.09375 182.21875 C 553.91341 182.21875 558.45235 183.38776 562.46875 185.4375 L 562.53125 185.40625 L 841.75 348.375 L 562.53125 511.375 L 562.46875 511.34375 C 558.45235 513.40734 553.91341 514.59375 549.09375 514.59375 C 532.862 514.59375 519.71875 501.41925 519.71875 485.1875 C 519.71875 481.29575 520.47264 477.59451 521.84375 474.1875 L 541.03125 414.6875 L 513.40625 414.6875 C 422.01264 414.6875 347.90625 488.78004 347.90625 580.1875 L 347.90625 805.1875 L 215.6875 805.1875 L 215.6875 580.1875 C 215.6875 415.75101 348.98361 282.46875 513.40625 282.46875 L 541.15625 282.46875 L 521.84375 222.59375 C 520.47264 219.18675 519.71875 215.49934 519.71875 211.59375 C 519.71875 195.37585 532.862 182.21875 549.09375 182.21875 z "
+     id="path10498" />
+</svg>
