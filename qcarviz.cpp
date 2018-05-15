@@ -310,6 +310,8 @@ ProfilerExclusive::AutoStop pa(gProfilerE, "section 1");
             log_item_json.consumption = car->engine.get_consumption_L_s();
             log_item_json.rel_consumption = consumption_monitor.l_100km_instantaneous(car->engine.get_consumption_L_s(), car->speed);
             log_item_json.rel_consumption_slow = hud.l_100km;
+            const qreal current_percent = track_path.percentAtLength(current_pos);
+            log_item_json.pos = track_path.pointAtPercent(current_percent);
         }
         replay_index++;
         time_delta.add_dt(dt);

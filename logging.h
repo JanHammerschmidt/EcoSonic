@@ -9,7 +9,7 @@
 #include "misc.h"
 
 #define LOG_VERSION "1.8"
-#define LOG_VERSION_JSON "1.2"
+#define LOG_VERSION_JSON "1.3"
 
 struct LogItem
 {
@@ -32,6 +32,7 @@ struct LogItemJson : public LogItem
     qreal rel_consumption_slow; // [L/100km] from the hud
     qreal scripted_steering;
     qreal steering;
+    QPointF pos;
     void write(QJsonObject& j) {
         j["throttle"] = throttle;
         j["braking"] = braking;
@@ -49,6 +50,8 @@ struct LogItemJson : public LogItem
         j["user_steering"] = user_steering;
         j["scripted_steering"] = scripted_steering;
         j["steering"] = steering;
+        j["pos_x"] = pos.x;
+        j["pos_y"] = pos.y;
     }
 };
 
