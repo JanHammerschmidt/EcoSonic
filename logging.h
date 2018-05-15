@@ -50,8 +50,8 @@ struct LogItemJson : public LogItem
         j["user_steering"] = user_steering;
         j["scripted_steering"] = scripted_steering;
         j["steering"] = steering;
-        j["pos_x"] = pos.x;
-        j["pos_y"] = pos.y;
+        j["pos_x"] = pos.x();
+        j["pos_y"] = pos.y();
     }
 };
 
