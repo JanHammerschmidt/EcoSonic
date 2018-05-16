@@ -1,4 +1,5 @@
-(
+( // select this bracket and execute in sc3
+q = q ? ();
 //initialize server
 s = Server.internal;
 Server.default = s;
@@ -126,8 +127,13 @@ SynthDef(\engine, {
 }).send(s);
 
 // load sound files
-~buf_honk = Buffer.read(s, "/Users/jhammers/Dropbox/Eigene Dateien/phd/code/car_simulator/media/honking/honk.wav");
-~buf_flash = Buffer.read(s, "/Users/jhammers/Dropbox/Eigene Dateien/phd/code/car_simulator/media/flash/shutter.wav");
+
+
+q.fname_honk = Document.current.path.dirname ++ "/../media/honking/honk.wav";
+q.fname_flash = Document.current.path.dirname ++ "/../media/flash/shutter.wav";
+
+~buf_honk = Buffer.read(s, q.fname_honk);
+~buf_flash = Buffer.read(s, q.fname_flash);
 
 //start & stop engine
 ~start_engine = {
@@ -262,6 +268,7 @@ NetAddr.localAddr.sendMsg("/pitch_start", 0, 20)
 s.freqscope
 
 (
+~x = ~engine;
 ~control_gui2.value([
 	[~x, \engineSpeed, [0,1], "engineSpeed"],
 	[~x, \mixCylinders, [0,1], "mixCylinders"],
@@ -277,3 +284,4 @@ s.freqscope
 )
 
 (200,210..10000).collect {|freq| (200/freq) ** 0.3333 };
+

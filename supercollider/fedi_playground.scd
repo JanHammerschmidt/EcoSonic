@@ -1,46 +1,6 @@
-(
-t.free;
-t = {~bus_pitch_freq.kr.poll(1)}.play
-)
-{~engine_loudness_out.kr.poll(1)}.play;
-~bus_pitch_freq.set(562.32270950691)
-~bus_pitch_freq.get.postln
-~engine_loudness_out.get
-~bus_pitch_freq.get
+( // select this bracket and execute in sc3
+q = q ? ();
 
-~bus_pitch_freq.get
-
-~ampcomp = Bus.control(s);
-(
-	~pitch_stop.value;
-~bus_pitch_freq.set(300);
-	~pitch = {|f,bw=0.1,a=0|
-	   //var f = VarLag.kr(~bus_pitch_freq.kr, 0.2);
-		var pitch_noise = a.dbamp*Resonz.ar(WhiteNoise.ar(0.5), f, bw);
-	    var engine_loudness_dbamp = (0.2 * (~engine_loudness_out.kr - 130)).dbamp;
-	var ampcomp_dbamp = (AmpComp.kr(f, 300,0.8)-0.02)*1.0204;
-		var pitch_noise_amped = pitch_noise * ampcomp_dbamp;
-     	Out.kr(~ampcomp, ampcomp_dbamp);
-		Out.ar(0, pitch_noise_amped!2)
-}.play;
-)
-~ampcomp.get
-~engine_loudness_out.get
-(
-	{~pitch_control_window = ~control_gui2.value([
-		[~pitch, \f, [300,3000], "freq"],
-		[~pitch, \bw, [0.01, 0.6], "bandwidth"],
-	[~pitch, \a, [-20,20], "ampl. (db)"],
-	], false)}.defer(0.2);
-)
-
-(300,310..3000).collect {|freq| (((350/freq) ** 0.9)-0.05)*1.0526 }.plot;
-(200,210..3000).collect {|freq| (200/freq) ** 0.33 }.plot;
-2000.linlin(0, 1000, 0.38, 0.42, \min);
-
-///////////////////////////////////////////////////////////////////////
-
-(
 // main output bus for volume control
 ~fedi_out = Bus.audio(s, 2);
 // stream everything to output
@@ -63,7 +23,10 @@ OSCdef(\msg_fedi_vol_set, {|m| ~fedi_stream.set(\db, m[1]); ("vol:"+m[1]).postln
 
 
 // generate a slurp-sound when above optimal rpm
-~buf_slurp = Buffer.read(s, "/Users/jhammers/slurp-sounds/slurp_cont.wav");
+q.slurp = Document.current.path.dirname ++ "/../media/slurp_cont.wav";
+~buf_slurp = Buffer.read(s, q.slurp);
+q.l100km = 0;
+
 //~buf_slurp = Buffer.read(s, "/Users/jhammers/slurp-sounds/selection/96896__tinyjiro__straw-slurp.wav");
 ~bus_slurp = Bus.audio(s, 2);
 
@@ -84,6 +47,8 @@ OSCdef(\msg_fedi_vol_set, {|m| ~fedi_stream.set(\db, m[1]); ("vol:"+m[1]).postln
 	~set_rpm_handler.value;
 	OSCdef(\msg_uphill_resistance).clear;
 	OSCdef(\msg_uphill_resistance).free;
+	OSCdef(\msg_L_100km).clear;
+	OSCdef(\msg_L_100km).free;
 	if (~slurp != nil, {~slurp.free; ~slurp = nil});
 	if (~slurp_lpf != nil, {~slurp_lpf.free; ~slurp_lpf = nil});
 };
@@ -97,7 +62,11 @@ OSCdef(\msg_fedi_vol_set, {|m| ~fedi_stream.set(\db, m[1]); ("vol:"+m[1]).postln
 			{~slurp_lpf.set(\m, 0)},
 			{
 				var min_rpm = ~uphill_resistance.linlin(0, 3000, 0.3, 0.45, \min); // 0.38
-				~slurp_lpf.set(\m, m[1].linlin(min_rpm, 0.65, 0,1.2));
+				if(q.l100km > 0){
+					~slurp_lpf.set(\m, m[1].linlin(min_rpm, 0.65, 0,1.2));
+				}{ // else
+					~slurp_lpf.set(\m, 0);
+				};
 				//m[1].linlin(min_rpm, 0.65, 0,1.2).postln
 		    });
 		//~lpf.set(\f, m[1].linlin(0.38,1, 400,15000));
@@ -108,6 +77,17 @@ OSCdef(\msg_fedi_vol_set, {|m| ~fedi_stream.set(\db, m[1]); ("vol:"+m[1]).postln
 		//~uphill_resistance.postln;
 	}, '/uphill_resistance');
 	{~slurp_play.value}.defer(0.2);
+	"slurpstart".postln;
+	OSCdef(\msg_L_100km, {|m| // range [0-40?]
+		if(m[1].isNaN.not && (m[1] != inf), {
+			//~pitch.set(\f, ..);
+			//m[1].postln;
+			//m[1].linlin(0,40,300,3000).postln;
+			~bus_pitch_freq.set(m[1].linlin(0,40,300,3000));
+			q.l100km = m[1]; // added 2018-05-15 for slurp refinement
+			//~bus_pitch_freq.get.postln;
+		});
+	}, '/L_100km');
 };
 OSCdef(\msg_slurp_start, {|m|
 	"slurp_start".postln;
@@ -117,6 +97,7 @@ OSCdef(\msg_slurp_stop, {|m|
 	"slurp_stop".postln;
 	~slurp_stop.value;
 }, '/slurp_stop');
+
 
 // map fuel consumption on pitched noise
 ~bus_pitch_freq = Bus.control(s);
@@ -160,6 +141,7 @@ OSCdef(\msg_pitch_start, {|m|
 			//m[1].postln;
 			//m[1].linlin(0,40,300,3000).postln;
 			~bus_pitch_freq.set(m[1].linlin(0,40,300,3000));
+			q.l100km = m[1]; // added 2018-05-15 for slurp refinement
 			//~bus_pitch_freq.get.postln;
 		});
 	}, '/L_100km');
@@ -232,15 +214,7 @@ OSCdef(\msg_grain_toggle_pitch, {|m|
 "FEDIs initialized!"
 )
 
-
-(
-
-)
-
-
-
-
-
+////////////////////////////////////////////////////////////////////////
 // map (absolute) fuel consumption on the frequency of grains
 // optionally with modifying the cutoff freq based on l/100km
 (
@@ -310,7 +284,7 @@ OSCdef(\msg_L_100km, {|m| // range [0-40?] // this is optional!
 )
 //~slurp.free;
 
-/////// TESTING /////////
+/////// TESTING ////////////////////////////////////////////////////////
 
 // (
 // n=LFNoise1;
@@ -356,3 +330,50 @@ s.prepareForRecord
 s.record
 s.stopRecording
 
+//// test code, was originally at top of file //////////////////////
+(
+t.free;
+t = {~bus_pitch_freq.kr.poll(1)}.play
+)
+{~engine_loudness_out.kr.poll(1)}.play;
+~bus_pitch_freq.set(562.32270950691)
+~bus_pitch_freq.get.postln
+~engine_loudness_out.get
+~bus_pitch_freq.get
+
+~bus_pitch_freq.get
+
+~ampcomp = Bus.control(s);
+(
+	~pitch_stop.value;
+~bus_pitch_freq.set(300);
+	~pitch = {|f,bw=0.1,a=0|
+	   //var f = VarLag.kr(~bus_pitch_freq.kr, 0.2);
+		var pitch_noise = a.dbamp*Resonz.ar(WhiteNoise.ar(0.5), f, bw);
+	    var engine_loudness_dbamp = (0.2 * (~engine_loudness_out.kr - 130)).dbamp;
+	var ampcomp_dbamp = (AmpComp.kr(f, 300,0.8)-0.02)*1.0204;
+		var pitch_noise_amped = pitch_noise * ampcomp_dbamp;
+     	Out.kr(~ampcomp, ampcomp_dbamp);
+		Out.ar(0, pitch_noise_amped!2)
+}.play;
+)
+~ampcomp.get
+~engine_loudness_out.get
+(
+	{~pitch_control_window = ~control_gui2.value([
+		[~pitch, \f, [300,3000], "freq"],
+		[~pitch, \bw, [0.01, 0.6], "bandwidth"],
+	[~pitch, \a, [-20,20], "ampl. (db)"],
+	], false)}.defer(0.2);
+)
+
+(300,310..3000).collect {|freq| (((350/freq) ** 0.9)-0.05)*1.0526 }.plot;
+(200,210..3000).collect {|freq| (200/freq) ** 0.33 }.plot;
+2000.linlin(0, 1000, 0.38, 0.42, \min);
+
+///////////////////////////////////////////////////////////////////////
+
+
+
+
+q.l100km
